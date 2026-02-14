@@ -1,19 +1,185 @@
+/* eslint-disable @next/next/no-img-element */
+
+"use client";
+
+import GoodMorning from "../components/GoodMorning";
+import { useForm } from "react-hook-form";
+import { yupResolver } from "@hookform/resolvers/yup";
+import FormInput from "../components/FormInput";
+import Btn from "../components/Btn";
+import {
+  DollarSign,
+  Clock,
+  PiggyBank,
+  Percent,
+  ChevronDown,
+  ChevronUp,
+  SlidersHorizontal,
+} from "lucide-react";
+import { incomeSchema } from "../validations/schema";
+import { useState } from "react";
+
 export default function Income() {
+  const [adjustOpen, setAdjustOpen] = useState(false);
+
+  const {
+    register,
+    handleSubmit,
+    formState: { errors },
+  } = useForm({
+    resolver: yupResolver(incomeSchema),
+  });
+
+  const onSubmit = (data) => {
+    console.log("Form Data:", data);
+  };
+
   return (
-    <div className="min-h-screen text-white px-6 py-8 lg:px-12 lg:py-12" style={{ backgroundColor: '#1a1a1a' }}>
-      <div className="max-w-4xl">
-        <h1 className="text-4xl font-bold mb-4" style={{ color: '#c7a481' }}>
-          Income
+    <div
+      className="min-h-screen text-white px-6 py-8 lg:px-12 lg:py-12"
+      style={{ backgroundColor: "#1a1a1a" }}
+    >
+      <GoodMorning />
+      <div className="mt-10">
+        <h1 className="md:text-4xl text-3xl font-bold mb-2">
+          Translate your
+          <span className="text-[#c7a481]"> current income</span>
         </h1>
-        <p className="text-zinc-400 text-lg">
-          Translate your income and maximize your earnings.
+
+        <p className="md:text-lg text-sm font-normal mb-5">
+          Enter your pre-tax and after-tax income details and adjust inflation
+          and tax parameters to receive required total savings to achieve your
+          income goals.
         </p>
 
-        <div className="mt-8 p-6 rounded-2xl border" style={{ backgroundColor: '#2a2a2a', borderColor: '#3a3a3a' }}>
-          <h2 className="text-xl font-semibold mb-2">Coming Soon</h2>
-          <p className="text-zinc-400">
-            This section is under development. Check back soon for updates.
-          </p>
+        <div className="w-full md:mt-10">
+          <form onSubmit={handleSubmit(onSubmit)} className="w-full space-y-6">
+
+            {/* 1) PRE-TAX INCOME & 2) DESIRED AFTER-TAX INCOME */}
+            <div className="md:grid md:grid-cols-2 w-full items-center gap-5 md:space-y-0 space-y-5">
+              {/* PRE-TAX INCOME */}
+              <div className="space-y-2">
+                <FormInput
+                  label="What is your current pre-tax income?"
+                  title="Income"
+                  name="preTaxIncome"
+                  type="number"
+                  register={register}
+                  error={errors.preTaxIncome}
+                  placeholder="80,000"
+                  icon={<DollarSign />}
+                />
+              </div>
+
+              {/* DESIRED AFTER-TAX INCOME */}
+              <div className="space-y-2">
+                <FormInput
+                  label="What is your desired after-tax income?"
+                  title="Income"
+                  name="desiredAfterTaxIncome"
+                  type="number"
+                  register={register}
+                  error={errors.desiredAfterTaxIncome}
+                  placeholder="60,000"
+                  icon={<DollarSign />}
+                />
+              </div>
+            </div>
+
+            {/* 3) TIME FRAME & 4) SAVINGS */}
+            <div className="md:grid md:grid-cols-2 w-full items-center gap-5 md:space-y-0 space-y-5">
+              {/* TIME FRAME */}
+              <div className="space-y-2">
+                <FormInput
+                  label="What is your time frame to reach your goal?"
+                  title="Time Frame"
+                  name="timeFrame"
+                  type="number"
+                  register={register}
+                  error={errors.timeFrame}
+                  placeholder="10"
+                  icon={<Clock />}
+                />
+              </div>
+
+              {/* SAVINGS */}
+              <div className="space-y-2">
+                <FormInput
+                  label="How much do you currently have in savings?"
+                  title="Savings"
+                  name="savings"
+                  type="number"
+                  register={register}
+                  error={errors.savings}
+                  placeholder="25,000"
+                  icon={<PiggyBank />}
+                />
+              </div>
+            </div>
+
+            {/* ADJUST TAX AND INFLATION RATES - COLLAPSIBLE SECTION */}
+            <div
+              className="rounded-xl border border-white/10 overflow-hidden"
+              style={{ backgroundColor: "#242424" }}
+            >
+              {/* COLLAPSE HEADER */}
+              <button
+                type="button"
+                onClick={() => setAdjustOpen((prev) => !prev)}
+                className="w-full flex items-center justify-between px-5 py-4 text-left transition-colors hover:bg-white/5"
+              >
+                <div className="flex items-center gap-3">
+                  <SlidersHorizontal size={20} className="text-[#c7a481]" />
+                  <span className="text-base md:text-lg font-semibold text-white">
+                    Adjust tax and inflation rates
+                  </span>
+                </div>
+                <div className="text-[#c7a481]">
+                  {adjustOpen ? <ChevronUp size={20} /> : <ChevronDown size={20} />}
+                </div>
+              </button>
+
+              {/* COLLAPSIBLE CONTENT */}
+              {adjustOpen && (
+                <div className="px-5 pb-6 pt-2">
+                  <div className="md:grid md:grid-cols-2 w-full items-center gap-5 md:space-y-0 space-y-5">
+                    {/* TAX RATE */}
+                    <div className="space-y-2">
+                      <FormInput
+                        label="Select your tax rate."
+                        title="Tax Rate"
+                        name="taxRate"
+                        type="number"
+                        register={register}
+                        error={errors.taxRate}
+                        placeholder="24"
+                        icon={<Percent />}
+                      />
+                    </div>
+
+                    {/* INFLATION RATE */}
+                    <div className="space-y-2">
+                      <FormInput
+                        label="Select your inflation rate."
+                        title="Inflation Rate"
+                        name="inflationRate"
+                        type="number"
+                        register={register}
+                        error={errors.inflationRate}
+                        placeholder="3"
+                        icon={<Percent />}
+                      />
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* SUBMIT BUTTON */}
+            <div className="mt-10 md:mx-auto md:max-w-2xl">
+              <Btn type="submit" title="Calculate" />
+            </div>
+          </form>
         </div>
       </div>
     </div>

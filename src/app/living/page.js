@@ -9,8 +9,11 @@ import { moveSchema } from "../validations/schema";
 import FormInput from "../components/FormInput";
 import Btn from "../components/Btn";
 import { HandCoinsIcon, MapPin } from "lucide-react";
+import { useRouter } from "next/navigation";
 
 export default function Living() {
+  const router = useRouter();
+
   const {
     register,
     handleSubmit,
@@ -20,7 +23,16 @@ export default function Living() {
   });
 
   const onSubmit = (data) => {
-    console.log("Form Data:", data);
+    // ── Option A: pass via URL search params (simple, no extra state) ──
+    const params = new URLSearchParams({
+      fromCity: data.currentCity,
+      toCity: data.targetCity,
+      income: data.income,
+    });
+    router.push(`/living/detail?${params.toString()}`);
+
+    // ── Option B (alternative): push to a dynamic route ──
+    // router.push(`/living/${encodeURIComponent(data.currentCity)}-to-${encodeURIComponent(data.targetCity)}`);
   };
 
   return (
@@ -35,9 +47,8 @@ export default function Living() {
           <span className="text-[#c7a481]"> cost of living</span>
         </h1>
 
-        <div className="w-full flex flex-col md:flex-row items-start gap-10">
+        <div className="w-full flex flex-col md:flex-row items-start gap-10 md:mt-10">
           {/* MAP IMAGE */}
-
           <form
             onSubmit={handleSubmit(onSubmit)}
             className="flex-1 w-full space-y-6 order-2 md:order-1"
@@ -81,11 +92,13 @@ export default function Living() {
                 icon={<HandCoinsIcon />}
               />
             </div>
+
             {/* SUBMIT BUTTON */}
-            <div className=" mt-10">
+            <div className="mt-10">
               <Btn type="submit" title="Calculate" />
             </div>
           </form>
+
           <div className="flex justify-center order-1 md:order-2">
             <img
               src="/map.png"

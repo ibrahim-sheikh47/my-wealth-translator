@@ -15,12 +15,15 @@ import {
   DollarSign,
   ChevronDown,
   ChevronUp,
+  SlidersHorizontal,
 } from "lucide-react";
 import { useState } from "react";
 import { retirementSchema } from "../validations/schema";
+import { useRouter } from "next/navigation";
 
 export default function Retirement() {
   const [showAdvanced, setShowAdvanced] = useState(false);
+  const router = useRouter();
 
   const {
     register,
@@ -28,10 +31,30 @@ export default function Retirement() {
     formState: { errors },
   } = useForm({
     resolver: yupResolver(retirementSchema),
+    defaultValues: {
+      currentAge:    35,
+      income:        60000,
+      savings:       150000,
+      contribution:  500,
+      budget:        60000,
+      retirementAge: 67,
+      incomeIncrease: 3,
+      inflationRate:  2.5,
+    },
   });
 
   const onSubmit = (data) => {
-    console.log("Form Data:", data);
+    const params = new URLSearchParams({
+      currentAge:     data.currentAge,
+      income:         data.income,
+      savings:        data.savings,
+      contribution:   data.contribution,
+      budget:         data.budget,
+      retirementAge:  data.retirementAge  ?? 67,
+      incomeIncrease: data.incomeIncrease ?? 3,
+      inflationRate:  data.inflationRate  ?? 2.5,
+    });
+    router.push(`/retirement/detail?${params.toString()}`);
   };
 
   return (
@@ -51,10 +74,10 @@ export default function Retirement() {
           details to explore different retirement options
         </p>
 
-        <div className="w-full">
+        <div className="w-full md:mt-10">
           <form onSubmit={handleSubmit(onSubmit)} className="w-full space-y-6">
-            {/* CURRENT AGE */}
             <div className="md:grid md:grid-rows-2 grid-cols-2 w-full items-center gap-5 md:space-y-0 space-y-5">
+              {/* CURRENT AGE */}
               <div className="space-y-2">
                 <FormInput
                   label="What is your current age?"
@@ -124,24 +147,30 @@ export default function Retirement() {
                 />
               </div>
             </div>
-            {/* ADVANCED INPUTS SECTION */}
-            <div className="mt-8 border-t border-gray-700 pt-6 ">
+
+            {/* ADVANCED INPUTS */}
+            <div
+              className="rounded-xl border border-white/10 overflow-hidden"
+              style={{ backgroundColor: "#242424" }}
+            >
               <button
                 type="button"
-                onClick={() => setShowAdvanced(!showAdvanced)}
-                className="flex items-center gap-2 text-[#c7a481] hover:text-[#d4b895] transition-colors font-medium mb-4"
+                onClick={() => setShowAdvanced((prev) => !prev)}
+                className="w-full flex items-center justify-between px-5 py-4 text-left transition-colors hover:bg-white/5"
               >
-                <span>Advanced Inputs</span>
-                {showAdvanced ? (
-                  <ChevronUp size={20} />
-                ) : (
-                  <ChevronDown size={20} />
-                )}
+                <div className="flex items-center gap-3">
+                  <SlidersHorizontal size={20} className="text-[#c7a481]" />
+                  <span className="text-base md:text-lg font-semibold text-white">
+                    Advanced Inputs
+                  </span>
+                </div>
+                <div className="text-[#c7a481]">
+                  {showAdvanced ? <ChevronUp size={20} /> : <ChevronDown size={20} />}
+                </div>
               </button>
 
               {showAdvanced && (
-                <div className="animate-in fade-in duration-200 md:grid md:grid-rows-2 md:grid-cols-2 w-full items-center gap-5 md:space-y-0 space-y-5">
-                  {/* RETIREMENT AGE */}
+                <div className="px-5 pb-6 pt-2 animate-in fade-in duration-200 md:grid md:grid-rows-2 md:grid-cols-2 w-full items-center gap-5 md:space-y-0 space-y-5">
                   <div className="space-y-2">
                     <FormInput
                       label="What is your expected retirement age?"
@@ -154,8 +183,6 @@ export default function Retirement() {
                       icon={<Calendar />}
                     />
                   </div>
-
-                  {/* INCOME INCREASE */}
                   <div className="space-y-2">
                     <FormInput
                       label="What is your estimated annual income increase?"
@@ -168,8 +195,6 @@ export default function Retirement() {
                       icon={<TrendingUp />}
                     />
                   </div>
-
-                  {/* INFLATION RATE */}
                   <div className="space-y-2">
                     <FormInput
                       label="What is your estimated rate of inflation?"
@@ -186,8 +211,8 @@ export default function Retirement() {
               )}
             </div>
 
-            {/* SUBMIT BUTTON */}
-            <div className="mt-10">
+            {/* SUBMIT */}
+            <div className="mt-10 md:mx-auto md:max-w-2xl">
               <Btn type="submit" title="Calculate" />
             </div>
           </form>

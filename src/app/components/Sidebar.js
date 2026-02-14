@@ -4,6 +4,8 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { motion } from 'framer-motion';
 import { Home, DollarSign, PiggyBank, TrendingUp, Wallet, LogOut } from 'lucide-react';
+import { useAuth } from '../context/AuthContext';
+import Btn from './Btn';
 
 const navItems = [
   { name: 'Home', href: '/', icon: Home },
@@ -20,6 +22,8 @@ const fast = {
 };
 
 export default function Sidebar() {
+
+  const { logout } = useAuth();
   const pathname = usePathname();
 
   return (
@@ -77,13 +81,7 @@ export default function Sidebar() {
           {/* Bottom CTA */}
           <div className="p-4 border-t border-[#2a2a2a]">
             <motion.div whileTap={{ scale: 0.96 }} transition={fast}>
-              <div
-                className="flex items-center justify-center gap-2 px-4 py-3 text-sm font-medium text-white rounded-xl bg-[#751312]"
-              >
-              {/* logout icon here */}
-                <LogOut className="w-4 h-4" />
-                Logout
-              </div>
+              <Btn title={"Logout"} onClick={logout}/>
             </motion.div>
           </div>
         </div>

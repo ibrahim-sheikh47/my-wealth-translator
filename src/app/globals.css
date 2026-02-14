@@ -1,15 +1,6 @@
 @import "tailwindcss";
 
-:root {
-  --foreground-rgb: 255, 255, 255;
-  --background-rgb: 26, 26, 26;
-  --accent-rgb: 199, 164, 129;
-}
-
-body {
-  color: rgb(var(--foreground-rgb));
-  background: rgb(var(--background-rgb));
-}
+/*  */
 
 @layer utilities {
   .text-balance {

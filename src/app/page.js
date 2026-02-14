@@ -1,47 +1,68 @@
-'use client';
+"use client";
 
-import { Calculator, TrendingUp, Building2, Wallet } from 'lucide-react';
-import GoodMorning from './components/GoodMorning';
+import { Calculator, TrendingUp, Building2, Wallet } from "lucide-react";
+import GoodMorning from "./components/GoodMorning";
 
 const translators = [
   {
-    name: <>My <span className='text-[#c7a481]'>Cost-of-Living</span> Translator</>,
+    name: (
+      <>
+        My <span className="text-[#c7a481]">Cost-of-Living</span> Translator
+      </>
+    ),
     icon: Calculator,
-    href: '/living',
+    href: "/living",
   },
   {
-    name: <>My <span className='text-[#c7a481]'>Retirement</span> Translator</>,
+    name: (
+      <>
+        My <span className="text-[#c7a481]">Retirement</span> Translator
+      </>
+    ),
     icon: TrendingUp,
-    href: '/retirement',
+    href: "/retirement",
   },
   {
-    name: <>My <span className='text-[#c7a481]'>Employer Stock Plan</span> Translator</>,
+    name: (
+      <>
+        My <span className="text-[#c7a481]">Employer Stock Plan</span>{" "}
+        Translator
+      </>
+    ),
     icon: Building2,
-    href: '/stocks',
+    href: "/stocks",
   },
   {
-    name: <>My <span className='text-[#c7a481]'>Income</span> Translator</>,
+    name: (
+      <>
+        My <span className="text-[#c7a481]">Income</span> Translator
+      </>
+    ),
     icon: Wallet,
-    href: '/income',
+    href: "/income",
   },
 ];
 
 export default function Home() {
   return (
-    <div className="min-h-screen text-white" style={{ backgroundColor: '#1a1a1a' }}>
+    <div
+      className="min-h-screen text-white"
+      style={{ backgroundColor: "#1a1a1a" }}
+    >
       {/* Header */}
       <div className="px-6 pt-8 pb-6 lg:px-12 lg:pt-12">
-       <GoodMorning/>
+        <GoodMorning />
 
         {/* Main Title */}
         <div className="mb-8 mt-5">
           <h1 className="text-4xl lg:text-5xl font-bold mb-2">
-            Let&apos;s start{' '}
-            <span style={{ color: '#c7a481' }}>
-              translating
-            </span>
+            Let&apos;s start{" "}
+            <span style={{ color: "#c7a481" }}>translating</span>
           </h1>
-          <h1 className="text-4xl lg:text-5xl font-bold" style={{ color: '#c7a481' }}>
+          <h1
+            className="text-4xl lg:text-5xl font-bold"
+            style={{ color: "#c7a481" }}
+          >
             your wealth
           </h1>
           <p className="text-zinc-400 mt-4 text-base">
@@ -62,8 +83,18 @@ export default function Home() {
                 <span className="text-base font-semibold text-white">
                   {translator.name}
                 </span>
-                <div className="w-12 h-12 rounded-xl flex items-center justify-center border" style={{ backgroundColor: 'rgba(199, 164, 129, 0.1)', borderColor: 'rgba(199, 164, 129, 0.2)' }}>
-                  <Icon className="w-6 h-6" strokeWidth={2} style={{ color: '#c7a481' }} />
+                <div
+                  className="w-12 h-12 rounded-xl flex items-center justify-center border"
+                  style={{
+                    backgroundColor: "rgba(199, 164, 129, 0.1)",
+                    borderColor: "rgba(199, 164, 129, 0.2)",
+                  }}
+                >
+                  <Icon
+                    className="w-6 h-6"
+                    strokeWidth={2}
+                    style={{ color: "#c7a481" }}
+                  />
                 </div>
               </a>
             );
@@ -75,7 +106,7 @@ export default function Home() {
           <a
             href="/portfolio"
             className="inline-flex items-center gap-2 font-medium hover:opacity-80"
-            style={{ color: '#c7a481' }}
+            style={{ color: "#c7a481" }}
           >
             <Wallet className="w-5 h-5" strokeWidth={2} />
             <span>View Portfolio</span>
