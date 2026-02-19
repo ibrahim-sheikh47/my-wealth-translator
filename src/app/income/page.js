@@ -18,9 +18,11 @@ import {
 } from "lucide-react";
 import { incomeSchema } from "../validations/schema";
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 
 export default function Income() {
   const [adjustOpen, setAdjustOpen] = useState(false);
+  const router = useRouter();
 
   const {
     register,
@@ -28,10 +30,26 @@ export default function Income() {
     formState: { errors },
   } = useForm({
     resolver: yupResolver(incomeSchema),
+    defaultValues: {
+      preTaxIncome:          75000,
+      desiredAfterTaxIncome: 60000,
+      timeFrame:             10,
+      savings:               50000,
+      taxRate:               20,
+      inflationRate:         3,
+    },
   });
 
   const onSubmit = (data) => {
-    console.log("Form Data:", data);
+    const params = new URLSearchParams({
+      preTaxIncome:          data.preTaxIncome,
+      desiredAfterTaxIncome: data.desiredAfterTaxIncome,
+      timeFrame:             data.timeFrame,
+      savings:               data.savings,
+      taxRate:               data.taxRate        ?? 20,
+      inflationRate:         data.inflationRate  ?? 3,
+    });
+    router.push(`/income/detail?${params.toString()}`);
   };
 
   return (
@@ -55,9 +73,7 @@ export default function Income() {
         <div className="w-full md:mt-10">
           <form onSubmit={handleSubmit(onSubmit)} className="w-full space-y-6">
 
-            {/* 1) PRE-TAX INCOME & 2) DESIRED AFTER-TAX INCOME */}
             <div className="md:grid md:grid-cols-2 w-full items-center gap-5 md:space-y-0 space-y-5">
-              {/* PRE-TAX INCOME */}
               <div className="space-y-2">
                 <FormInput
                   label="What is your current pre-tax income?"
@@ -70,8 +86,6 @@ export default function Income() {
                   icon={<DollarSign />}
                 />
               </div>
-
-              {/* DESIRED AFTER-TAX INCOME */}
               <div className="space-y-2">
                 <FormInput
                   label="What is your desired after-tax income?"
@@ -86,9 +100,7 @@ export default function Income() {
               </div>
             </div>
 
-            {/* 3) TIME FRAME & 4) SAVINGS */}
             <div className="md:grid md:grid-cols-2 w-full items-center gap-5 md:space-y-0 space-y-5">
-              {/* TIME FRAME */}
               <div className="space-y-2">
                 <FormInput
                   label="What is your time frame to reach your goal?"
@@ -101,8 +113,6 @@ export default function Income() {
                   icon={<Clock />}
                 />
               </div>
-
-              {/* SAVINGS */}
               <div className="space-y-2">
                 <FormInput
                   label="How much do you currently have in savings?"
@@ -117,12 +127,10 @@ export default function Income() {
               </div>
             </div>
 
-            {/* ADJUST TAX AND INFLATION RATES - COLLAPSIBLE SECTION */}
             <div
               className="rounded-xl border border-white/10 overflow-hidden"
               style={{ backgroundColor: "#242424" }}
             >
-              {/* COLLAPSE HEADER */}
               <button
                 type="button"
                 onClick={() => setAdjustOpen((prev) => !prev)}
@@ -139,11 +147,9 @@ export default function Income() {
                 </div>
               </button>
 
-              {/* COLLAPSIBLE CONTENT */}
               {adjustOpen && (
                 <div className="px-5 pb-6 pt-2">
                   <div className="md:grid md:grid-cols-2 w-full items-center gap-5 md:space-y-0 space-y-5">
-                    {/* TAX RATE */}
                     <div className="space-y-2">
                       <FormInput
                         label="Select your tax rate."
@@ -156,8 +162,6 @@ export default function Income() {
                         icon={<Percent />}
                       />
                     </div>
-
-                    {/* INFLATION RATE */}
                     <div className="space-y-2">
                       <FormInput
                         label="Select your inflation rate."
@@ -175,7 +179,6 @@ export default function Income() {
               )}
             </div>
 
-            {/* SUBMIT BUTTON */}
             <div className="mt-10 md:mx-auto md:max-w-2xl">
               <Btn type="submit" title="Calculate" />
             </div>

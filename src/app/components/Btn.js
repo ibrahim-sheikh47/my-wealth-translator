@@ -14,3 +14,4 @@ export default function Btn({ title , type = 'button', onClick, className = '' }
     </button>
   );
 }
+
