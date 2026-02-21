@@ -11,7 +11,7 @@ import Btn from "@/app/components/Btn";
 import { useAuth } from "@/app/context/AuthContext";
 import { resetPasswordSchema } from "@/app/validations/schema";
 
-export function ResetPage() {
+export default function ResetPage() {
   // Firebase handles password reset via email link automatically.
   // This page is shown AFTER the user clicks the link in their email.
   // You can use confirmPasswordReset from Firebase here.
