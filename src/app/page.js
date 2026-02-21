@@ -2,6 +2,10 @@
 
 import { Calculator, TrendingUp, Building2, Wallet } from "lucide-react";
 import GoodMorning from "./components/GoodMorning";
+import { useDispatch, useSelector } from "react-redux";
+import { useAuth } from "./hooks/useAuth";
+import { useEffect } from "react";
+import { fetchSubscriptionStatus } from "./store/slices/userProfileSlice";
 
 const translators = [
   {
@@ -44,6 +48,16 @@ const translators = [
 ];
 
 export default function Home() {
+  const dispatch = useDispatch();
+  const { user } = useAuth();
+  const { plan } = useSelector((state) => state.userProfile);
+
+  useEffect(() => {
+    if (user?.uid && plan !== 'pro') {
+      dispatch(fetchSubscriptionStatus(user.uid));
+    }
+  }, [user?.uid, plan, dispatch]);
+
   return (
     <div
       className="min-h-screen text-white"

@@ -1,35 +1,46 @@
 'use client';
 
-import { usePathname } from 'next/navigation';
-import { useAuth } from '../context/AuthContext';
+import { usePathname, useRouter } from 'next/navigation'; // Add useRouter here
 import Sidebar from './Sidebar';
+import { useAuth } from '../hooks/useAuth';
+import { useSelector } from 'react-redux';
+import { useEffect } from 'react';
 
 export default function ConditionalLayout({ children }) {
   const pathname = usePathname();
-  const { user, loading } = useAuth();
+  const router = useRouter(); // Initialize the router
+  const { user, isInitialized, isLoading } = useAuth(); // Use isLoading to match Redux
+  const { plan } = useSelector((state) => state.userProfile);
 
-  // Don't show sidebar on auth pages or splash
   const isAuthPage = pathname?.startsWith('/auth') || pathname === '/splash';
+  const isPaymentPage = pathname === '/payment';
 
-  // Show nothing while loading to prevent flash
-  if (loading) {
-    return null;
+  // The Logic: If logged in but on free plan, force to payment
+  useEffect(() => {
+    if (isInitialized && user && plan === 'free' && !isPaymentPage && !isAuthPage) {
+      router.replace('/payment');
+    }
+  }, [isInitialized, user, plan, isPaymentPage, isAuthPage, router]);
+
+  // Prevent flash by showing a loader while initializing
+  if (!isInitialized || isLoading) {
+    return (
+      <div className="min-h-screen bg-[#1a1a1a] flex items-center justify-center">
+        <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-[#c7a481]"></div>
+      </div>
+    );
   }
 
-  // Don't show main layout on auth pages
-  if (isAuthPage) {
+  if (isAuthPage || isPaymentPage) {
     return <>{children}</>;
   }
 
-  // Only show main app layout if user is authenticated
-  if (!user) {
-    return null; // Will redirect in AuthContext
-  }
+  if (!user) return null;
 
   return (
     <div className="flex min-h-screen" style={{ backgroundColor: '#1a1a1a' }}>
       <Sidebar />
-      <main className="flex-1 pb-20 lg:pb-0 lg:ml-0">
+      <main className="flex-1 pb-20 lg:pb-0">
         {children}
       </main>
     </div>

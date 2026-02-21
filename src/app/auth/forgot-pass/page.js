@@ -1,41 +1,44 @@
-/* eslint-disable react/no-unescaped-entities */
-'use client';
+"use client";
 
-import { useState } from 'react';
-import { useForm } from 'react-hook-form';
-import { yupResolver } from '@hookform/resolvers/yup';
-import * as yup from 'yup';
-import { Mail } from 'lucide-react';
-import Image from 'next/image';
-import FormInput from '@/app/components/FormInput';
-import Btn from '@/app/components/Btn';
-import { forgotPassSchema } from '@/app/validations/schema';
-import Link from 'next/link';
-import { useRouter } from 'next/navigation';
-
+import { useState } from "react";
+import { useForm } from "react-hook-form";
+import { yupResolver } from "@hookform/resolvers/yup";
+import { Mail } from "lucide-react";
+import Image from "next/image";
+import Link from "next/link";
+import { useRouter } from "next/navigation";
+import FormInput from "@/app/components/FormInput";
+import Btn from "@/app/components/Btn";
+import { forgotPassSchema } from "@/app/validations/schema";
+import { useAuth } from "@/app/hooks/useAuth";
 
 export default function ForgotPassPage() {
-    const router = useRouter();
-
-  const [successMessage, setSuccessMessage] = useState('');
+  const router = useRouter();
+  const { sendResetEmail, isLoading } = useAuth();
+  const [localError, setLocalError] = useState("");
+  const [successMessage, setSuccessMessage] = useState("");
 
   const {
     register,
     handleSubmit,
     formState: { errors },
-  } = useForm({
-    resolver: yupResolver(forgotPassSchema),
-  });
+  } = useForm({ resolver: yupResolver(forgotPassSchema) });
 
- const onSubmit = (data) => {
-  // Navigate to reset password page with email as query
-  router.push(`/auth/reset?email=${encodeURIComponent(data.email)}`);
-};
+  const onSubmit = async (data) => {
+    setLocalError("");
+    setSuccessMessage("");
+    const result = await sendResetEmail(data.email);
+    if (result.success) {
+      // Navigate to reset page so user can enter the OTP code
+      router.push(`/auth/reset?email=${encodeURIComponent(data.email)}`);
+    } else {
+      setLocalError(result.error);
+    }
+  };
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-[#1a1a1a] px-4 py-8">
       <div className="w-full max-w-md border-2 border-[#2a2a2a] p-8 rounded-lg">
-        {/* Logo/Title Section */}
         <div className="text-center mb-12">
           <Image
             src="/logo.png"
@@ -52,45 +55,47 @@ export default function ForgotPassPage() {
           </p>
         </div>
 
-        {/* Reset Form Card */}
-        <div className="bg-transparent">
-          <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
-            <p className="text-white text-base">
-              No worries, it happens. Simply enter your email address associated with your account, and we'll send you a code to reset your password.
-            </p>
+        <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
+          <p className="text-white text-base">
+            No worries, it happens. Simply enter your email address associated
+            with your account, and we'll send you a code to reset your password.
+          </p>
 
-            {/* Email Input */}
-            <FormInput
-              label=""
-              name="email"
-              register={register}
-              error={errors.email}
-              type="email"
-              placeholder="Enter your email address"
-              icon={<Mail size={20} />}
-            />
+          <FormInput
+            label=""
+            name="email"
+            register={register}
+            error={errors.email}
+            type="email"
+            placeholder="Enter your email address"
+            icon={<Mail size={20} />}
+          />
 
-            {/* Success Message */}
-            {successMessage && (
-              <div className="bg-green-500/10 border border-green-500/20 rounded-lg px-4 py-3">
-                <p className="text-green-400 text-sm">{successMessage}</p>
-              </div>
-            )}
+          {localError && (
+            <div className="bg-red-500/10 border border-red-500/20 rounded-lg px-4 py-3">
+              <p className="text-red-400 text-sm">{localError}</p>
+            </div>
+          )}
 
-            {/* Submit Button */}
-            <Btn type="submit" title="Send Code" />
-          </form>
-          <div className="mt-8 text-center">
-            <p className="text-zinc-400 text-sm">
-              Remember your password?{' '}
-              <Link
-                href="/auth/login"
-                className="text-white hover:text-[#c7a481] font-medium transition underline"
-              >
-                Login now
-              </Link>
-            </p>
-          </div>
+          {successMessage && (
+            <div className="bg-green-500/10 border border-green-500/20 rounded-lg px-4 py-3">
+              <p className="text-green-400 text-sm">{successMessage}</p>
+            </div>
+          )}
+
+          <Btn type="submit" title={isLoading ? "Sending..." : "Send Code"} />
+        </form>
+
+        <div className="mt-8 text-center">
+          <p className="text-zinc-400 text-sm">
+            Remember your password?{" "}
+            <Link
+              href="/auth/login"
+              className="text-white hover:text-[#c7a481] font-medium transition underline"
+            >
+              Login now
+            </Link>
+          </p>
         </div>
       </div>
     </div>

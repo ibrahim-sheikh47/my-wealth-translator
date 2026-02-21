@@ -4,8 +4,8 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { motion } from 'framer-motion';
 import { Home, DollarSign, PiggyBank, TrendingUp, Wallet, LogOut } from 'lucide-react';
-import { useAuth } from '../context/AuthContext';
 import Btn from './Btn';
+import { useAuth } from '../hooks/useAuth';
 
 const navItems = [
   { name: 'Home', href: '/', icon: Home },
