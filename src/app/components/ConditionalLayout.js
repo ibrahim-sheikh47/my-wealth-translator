@@ -1,6 +1,7 @@
+// ConditionalLayout.jsx
 'use client';
 
-import { usePathname, useRouter } from 'next/navigation'; // Add useRouter here
+import { usePathname, useRouter } from 'next/navigation';
 import Sidebar from './Sidebar';
 import { useAuth } from '../hooks/useAuth';
 import { useSelector } from 'react-redux';
@@ -8,24 +9,22 @@ import { useEffect } from 'react';
 
 export default function ConditionalLayout({ children }) {
   const pathname = usePathname();
-  const router = useRouter(); // Initialize the router
-  const { user, isInitialized, isLoading } = useAuth(); // Use isLoading to match Redux
+  const router = useRouter();
+  const { user, isInitialized, isLoading } = useAuth();
   const { plan } = useSelector((state) => state.userProfile);
 
   const isAuthPage = pathname?.startsWith('/auth') || pathname === '/splash';
   const isPaymentPage = pathname === '/payment';
   const isPaymentSuccessPage = pathname?.startsWith('/payment/success');
 
-  // The Logic: If logged in but on free plan, force to payment
-  // BUT: Don't redirect if on payment success page (allow verification to complete)
   useEffect(() => {
     if (isInitialized && user && plan === 'free' && !isPaymentPage && !isPaymentSuccessPage && !isAuthPage) {
       router.replace('/payment');
     }
   }, [isInitialized, user, plan, isPaymentPage, isPaymentSuccessPage, isAuthPage, router]);
 
-  // Prevent flash by showing a loader while initializing
-  if (!isInitialized || isLoading) {
+  // ✅ FIX 1: Skip spinner on auth/payment pages — prevents 3s re-render flash on login/signup
+  if ((!isInitialized || isLoading) && !isAuthPage && !isPaymentPage) {
     return (
       <div className="min-h-screen bg-[#1a1a1a] flex items-center justify-center">
         <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-[#c7a481]"></div>
@@ -35,6 +34,11 @@ export default function ConditionalLayout({ children }) {
 
   if (isAuthPage || isPaymentPage) {
     return <>{children}</>;
+  }
+
+  // ✅ FIX 2: Return null instead of flashing content when redirect is pending
+  if (isInitialized && user && plan === 'free' && !isPaymentSuccessPage) {
+    return null;
   }
 
   if (!user) return null;
