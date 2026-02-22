@@ -21,9 +21,14 @@ export default function ConditionalLayout({ children }) {
     if (isInitialized && user && plan === 'free' && !isPaymentPage && !isPaymentSuccessPage && !isAuthPage) {
       router.replace('/payment');
     }
+
+    // ✅ FIX: Redirect unauthenticated users to /splash instead of blank screen
+    if (isInitialized && !user && !isAuthPage) {
+      router.replace('/splash');
+    }
   }, [isInitialized, user, plan, isPaymentPage, isPaymentSuccessPage, isAuthPage, router]);
 
-  // ✅ FIX 1: Skip spinner on auth/payment pages — prevents 3s re-render flash on login/signup
+  // ✅ Skip spinner on auth/payment pages
   if ((!isInitialized || isLoading) && !isAuthPage && !isPaymentPage) {
     return (
       <div className="min-h-screen bg-[#1a1a1a] flex items-center justify-center">
@@ -36,11 +41,12 @@ export default function ConditionalLayout({ children }) {
     return <>{children}</>;
   }
 
-  // ✅ FIX 2: Return null instead of flashing content when redirect is pending
+  // ✅ Return null while redirect is pending (no flash)
   if (isInitialized && user && plan === 'free' && !isPaymentSuccessPage) {
     return null;
   }
 
+  // ✅ Return null while redirecting to /splash (spinner above handles the wait)
   if (!user) return null;
 
   return (
