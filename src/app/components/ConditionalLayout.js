@@ -14,13 +14,15 @@ export default function ConditionalLayout({ children }) {
 
   const isAuthPage = pathname?.startsWith('/auth') || pathname === '/splash';
   const isPaymentPage = pathname === '/payment';
+  const isPaymentSuccessPage = pathname?.startsWith('/payment/success');
 
   // The Logic: If logged in but on free plan, force to payment
+  // BUT: Don't redirect if on payment success page (allow verification to complete)
   useEffect(() => {
-    if (isInitialized && user && plan === 'free' && !isPaymentPage && !isAuthPage) {
+    if (isInitialized && user && plan === 'free' && !isPaymentPage && !isPaymentSuccessPage && !isAuthPage) {
       router.replace('/payment');
     }
-  }, [isInitialized, user, plan, isPaymentPage, isAuthPage, router]);
+  }, [isInitialized, user, plan, isPaymentPage, isPaymentSuccessPage, isAuthPage, router]);
 
   // Prevent flash by showing a loader while initializing
   if (!isInitialized || isLoading) {

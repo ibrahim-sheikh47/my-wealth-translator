@@ -10,9 +10,8 @@ import Image from "next/image";
 import FormInput from "@/app/components/FormInput";
 import Btn from "@/app/components/Btn";
 import { useAuth } from "@/app/hooks/useAuth";
-import { useEffect } from "react";
-import { useRouter } from "next/navigation";
-
+// ✅ FIX: Removed unused `useEffect` and `useRouter` imports that were
+// causing React to complain and potentially triggering hydration mismatches.
 
 const loginSchema = yup.object({
   email: yup

@@ -1,4 +1,4 @@
-// app/api/stripe/create-checkout-session/route.js
+
 
 import { NextResponse } from "next/server";
 import Stripe from "stripe";
@@ -30,6 +30,7 @@ export async function POST(request) {
       ],
       success_url: `${process.env.NEXT_PUBLIC_APP_URL}/payment/success?session_id={CHECKOUT_SESSION_ID}`,
       cancel_url: `${process.env.NEXT_PUBLIC_APP_URL}/payment`,
+      client_reference_id: userId,
       metadata: {
         userId,
         plan,

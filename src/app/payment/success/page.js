@@ -1,13 +1,16 @@
 // app/payment/success/page.jsx
 'use client';
 
-import { useEffect, useState } from 'react';
+// ✅ FIX 1: Suspense MUST be imported at the top before it's used.
+// Having it at the bottom caused the component to crash silently,
+// which triggered middleware to redirect back to /payment.
+import { Suspense, useEffect, useState, useRef } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { useDispatch } from 'react-redux';
+import { useDispatch, useSelector } from 'react-redux';
 import { CheckCircle, Loader2 } from 'lucide-react';
 import Image from 'next/image';
 import { clearNeedsPayment } from '@/app/store/slices/authSlice';
-import { fetchSubscriptionStatus } from '@/app/store/slices/userProfileSlice';
+import { fetchSubscriptionStatus, setPlan } from '@/app/store/slices/userProfileSlice';
 import { useAuth } from '@/app/hooks/useAuth';
 
 function PaymentSuccessInner() {
@@ -15,40 +18,73 @@ function PaymentSuccessInner() {
   const dispatch = useDispatch();
   const searchParams = useSearchParams();
   const { user } = useAuth();
-  const [status, setStatus] = useState('loading'); // 'loading' | 'success' | 'error'
+  const userPlan = useSelector((state) => state.userProfile?.plan);
+  const [status, setStatus] = useState('loading');
+  // ✅ FIX 2: Guard against the useEffect running twice in React StrictMode
+  const hasRun = useRef(false);
 
   useEffect(() => {
+    if (hasRun.current) return;
+    hasRun.current = true;
+
     const sessionId = searchParams.get('session_id');
     if (!sessionId || !user?.uid) {
       setStatus('error');
       return;
     }
 
-  const verifyPayment = async () => {
-  try {
-    // 1. Give the webhook 2 seconds to finish the Firestore update
-    await new Promise((resolve) => setTimeout(resolve, 2000));
+    const verifyPayment = async () => {
+      try {
+        // ✅ FIX 3: Retry up to 8 times (every 2s = up to 16s total) instead
+        // of a single 2s delay. Webhooks are async and can take varying time.
+        // We poll Firestore until plan === 'pro' is confirmed.
+        const MAX_ATTEMPTS = 8;
+        const RETRY_DELAY  = 2000;
+        let verified = false;
+        let result = null;
 
-    // 2. Fetch the latest profile directly from Firestore
-    // This ensures your Redux state 'user.plan' becomes 'pro'
-    await dispatch(fetchSubscriptionStatus(user.uid)).unwrap();
+        for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
+          // Wait before each check (first attempt still waits 2s for webhook)
+          await new Promise((resolve) => setTimeout(resolve, RETRY_DELAY));
 
-    // 3. Clear the UI block flags
-    dispatch(clearNeedsPayment());
+          result = await dispatch(
+            fetchSubscriptionStatus(user.uid)
+          ).unwrap();
 
-    setStatus('success');
+          console.log(`[v0] Attempt ${attempt}/${MAX_ATTEMPTS}: Current plan = '${result?.plan}'`);
 
-    // 4. Force a hard redirect to home to reset all route guards
-    setTimeout(() => {
-      window.location.href = '/'; // Use window.location for a "hard" reset of the app state
-    }, 2500);
-  } catch (error) {
-    console.error('Payment verification error:', error);
-    setStatus('error');
-  }
-};
+          if (result?.plan === 'pro') {
+            verified = true;
+            break;
+          }
+        }
+
+        if (!verified) {
+          throw new Error('Subscription not confirmed after maximum retries.');
+        }
+
+        // ✅ Update Redux state to reflect the new pro plan
+        if (result) {
+          dispatch(setPlan(result));
+        }
+
+        // ✅ Clear the payment gate flag in Redux
+        dispatch(clearNeedsPayment());
+        setStatus('success');
+
+        // Hard redirect resets all Redux/route guard state cleanly
+        setTimeout(() => {
+          window.location.href = '/';
+        }, 2500);
+      } catch (error) {
+        console.error('[v0] Payment verification error:', error);
+        setStatus('error');
+      }
+    };
+
     verifyPayment();
-  }, [searchParams, user, dispatch, router]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user?.uid]); // Only re-run if the user changes, not on every render
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-[#1a1a1a] px-4">
@@ -107,7 +143,8 @@ function PaymentSuccessInner() {
               Payment Verification Failed
             </h1>
             <p className="text-gray-400 mb-6">
-              We couldn't verify your payment. Please contact support.
+              We couldn&apos;t verify your payment. Please contact support if
+              you were charged.
             </p>
             <button
               onClick={() => router.push('/payment')}
@@ -123,6 +160,8 @@ function PaymentSuccessInner() {
   );
 }
 
+// ✅ Suspense wraps the inner component because useSearchParams()
+// requires it in Next.js App Router.
 export default function PaymentSuccess() {
   return (
     <Suspense fallback={<div className="min-h-screen bg-[#1a1a1a]" />}>
@@ -130,6 +169,3 @@ export default function PaymentSuccess() {
     </Suspense>
   );
 }
-
-// Need Suspense import
-import { Suspense } from 'react';
