@@ -17,13 +17,16 @@ import {
   ChevronUp,
   SlidersHorizontal,
 } from "lucide-react";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { retirementSchema } from "../validations/schema";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
+import { Suspense } from "react";
 
-export default function Retirement() {
+// ─── Inner form ───────────────────────────────────────────────────────────────
+function RetirementFormInner() {
   const [showAdvanced, setShowAdvanced] = useState(false);
   const router = useRouter();
+  const params = useSearchParams();
 
   const {
     register,
@@ -32,29 +35,41 @@ export default function Retirement() {
   } = useForm({
     resolver: yupResolver(retirementSchema),
     defaultValues: {
-      currentAge:    35,
-      income:        60000,
-      savings:       150000,
-      contribution:  500,
-      budget:        60000,
-      retirementAge: 67,
-      incomeIncrease: 3,
-      inflationRate:  2.5,
+      currentAge: params.get("currentAge") || "",
+      income: params.get("income") || "",
+      savings: params.get("savings") || "",
+      contribution: params.get("contribution") || "",
+      budget: params.get("budget") || "",
+      retirementAge: params.get("retirementAge") || "",
+      incomeIncrease: params.get("incomeIncrease") || "",
+      inflationRate: params.get("inflationRate") || "",
     },
   });
 
+  // Auto-open advanced if advanced params exist
+  useEffect(() => {
+    if (
+      params.get("retirementAge") ||
+      params.get("incomeIncrease") ||
+      params.get("inflationRate")
+    ) {
+      setShowAdvanced(true);
+    }
+  }, [params]);
+
   const onSubmit = (data) => {
-    const params = new URLSearchParams({
-      currentAge:     data.currentAge,
-      income:         data.income,
-      savings:        data.savings,
-      contribution:   data.contribution,
-      budget:         data.budget,
-      retirementAge:  data.retirementAge  ?? 67,
-      incomeIncrease: data.incomeIncrease ?? 3,
-      inflationRate:  data.inflationRate  ?? 2.5,
+    const urlParams = new URLSearchParams({
+      currentAge: data.currentAge,
+      income: data.income,
+      savings: data.savings,
+      contribution: data.contribution,
+      budget: data.budget,
+      retirementAge: data.retirementAge || "",
+      incomeIncrease: data.incomeIncrease || "",
+      inflationRate: data.inflationRate || "",
     });
-    router.push(`/retirement/detail?${params.toString()}`);
+
+    router.push(`/retirement/detail?${urlParams.toString()}`);
   };
 
   return (
@@ -63,6 +78,7 @@ export default function Retirement() {
       style={{ backgroundColor: "#1a1a1a" }}
     >
       <GoodMorning />
+
       <div className="mt-10">
         <h1 className="md:text-4xl text-3xl font-bold mb-2">
           Translate your
@@ -77,78 +93,63 @@ export default function Retirement() {
         <div className="w-full md:mt-10">
           <form onSubmit={handleSubmit(onSubmit)} className="w-full space-y-6">
             <div className="md:grid md:grid-rows-2 grid-cols-2 w-full items-center gap-5 md:space-y-0 space-y-5">
-              {/* CURRENT AGE */}
-              <div className="space-y-2">
-                <FormInput
-                  label="What is your current age?"
-                  title="Current Age"
-                  name="currentAge"
-                  type="number"
-                  register={register}
-                  error={errors.currentAge}
-                  placeholder="35"
-                  icon={<Calendar />}
-                />
-              </div>
+              <FormInput
+                label="What is your current age?"
+                title="Current Age"
+                name="currentAge"
+                type="number"
+                register={register}
+                error={errors.currentAge}
+                placeholder="Enter age"
+                icon={<Calendar />}
+              />
 
-              {/* ANNUAL INCOME */}
-              <div className="space-y-2">
-                <FormInput
-                  label="What is your annual pre-tax income?"
-                  title="Income"
-                  name="income"
-                  type="number"
-                  register={register}
-                  error={errors.income}
-                  placeholder="82000"
-                  icon={<HandCoinsIcon />}
-                />
-              </div>
+              <FormInput
+                label="What is your annual pre-tax income?"
+                title="Income"
+                name="income"
+                type="number"
+                register={register}
+                error={errors.income}
+                placeholder="Enter income"
+                icon={<HandCoinsIcon />}
+              />
 
-              {/* CURRENT SAVINGS */}
-              <div className="space-y-2">
-                <FormInput
-                  label="What are your current retirement savings?"
-                  title="Savings"
-                  name="savings"
-                  type="number"
-                  register={register}
-                  error={errors.savings}
-                  placeholder="150000"
-                  icon={<Wallet />}
-                />
-              </div>
+              <FormInput
+                label="What are your current retirement savings?"
+                title="Savings"
+                name="savings"
+                type="number"
+                register={register}
+                error={errors.savings}
+                placeholder="Enter savings"
+                icon={<Wallet />}
+              />
 
-              {/* MONTHLY CONTRIBUTION */}
-              <div className="space-y-2">
-                <FormInput
-                  label="How much is your monthly contribution?"
-                  title="Contribution"
-                  name="contribution"
-                  type="number"
-                  register={register}
-                  error={errors.contribution}
-                  placeholder="1000"
-                  icon={<TrendingUp />}
-                />
-              </div>
+              <FormInput
+                label="How much is your monthly contribution?"
+                title="Contribution"
+                name="contribution"
+                type="number"
+                register={register}
+                error={errors.contribution}
+                placeholder="Enter monthly contribution"
+                icon={<TrendingUp />}
+              />
 
-              {/* RETIREMENT BUDGET */}
-              <div className="space-y-2">
-                <FormInput
-                  label="What is your expected retirement budget?"
-                  title="Budget"
-                  name="budget"
-                  type="number"
-                  register={register}
-                  error={errors.budget}
-                  placeholder="60000"
-                  icon={<DollarSign />}
-                />
-              </div>
+              <FormInput
+                label="What is your expected annual retirement budget?"
+                title="Annual Budget"
+                name="budget"
+                type="number"
+                register={register}
+                error={errors.budget}
+                placeholder="Enter annual budget"
+                icon={<DollarSign />}
+              />
             </div>
 
-            {/* ADVANCED INPUTS */}
+            {/* Advanced Section */}
             <div
               className="rounded-xl border border-white/10 overflow-hidden"
               style={{ backgroundColor: "#242424" }}
@@ -165,53 +166,52 @@ export default function Retirement() {
                   </span>
                 </div>
                 <div className="text-[#c7a481]">
-                  {showAdvanced ? <ChevronUp size={20} /> : <ChevronDown size={20} />}
+                  {showAdvanced ? (
+                    <ChevronUp size={20} />
+                  ) : (
+                    <ChevronDown size={20} />
+                  )}
                 </div>
               </button>
 
               {showAdvanced && (
-                <div className="px-5 pb-6 pt-2 animate-in fade-in duration-200 md:grid md:grid-rows-2 md:grid-cols-2 w-full items-center gap-5 md:space-y-0 space-y-5">
-                  <div className="space-y-2">
-                    <FormInput
-                      label="What is your expected retirement age?"
-                      title="Retirement Age"
-                      name="retirementAge"
-                      type="number"
-                      register={register}
-                      error={errors.retirementAge}
-                      placeholder="65"
-                      icon={<Calendar />}
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <FormInput
-                      label="What is your estimated annual income increase?"
-                      title="Income Increase"
-                      name="incomeIncrease"
-                      type="number"
-                      register={register}
-                      error={errors.incomeIncrease}
-                      placeholder="3"
-                      icon={<TrendingUp />}
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <FormInput
-                      label="What is your estimated rate of inflation?"
-                      title="Inflation Rate"
-                      name="inflationRate"
-                      type="number"
-                      register={register}
-                      error={errors.inflationRate}
-                      placeholder="2.5"
-                      icon={<TrendingUp />}
-                    />
-                  </div>
+                <div className="px-5 pb-6 pt-2 md:grid md:grid-cols-2 gap-5 space-y-5 md:space-y-0">
+                  <FormInput
+                    label="What is your expected retirement age?"
+                    title="Retirement Age"
+                    name="retirementAge"
+                    type="number"
+                    register={register}
+                    error={errors.retirementAge}
+                    placeholder="Enter retirement age"
+                    icon={<Calendar />}
+                  />
+
+                  <FormInput
+                    label="What is your estimated annual income increase? (%)"
+                    title="Income Increase"
+                    name="incomeIncrease"
+                    type="number"
+                    register={register}
+                    error={errors.incomeIncrease}
+                    placeholder="Enter income growth"
+                    icon={<TrendingUp />}
+                  />
+
+                  <FormInput
+                    label="What is your estimated rate of inflation? (%)"
+                    title="Inflation Rate"
+                    name="inflationRate"
+                    type="number"
+                    register={register}
+                    error={errors.inflationRate}
+                    placeholder="Enter inflation rate"
+                    icon={<TrendingUp />}
+                  />
                 </div>
               )}
             </div>
 
-            {/* SUBMIT */}
             <div className="mt-10 md:mx-auto md:max-w-2xl">
               <Btn type="submit" title="Calculate" />
             </div>
@@ -219,5 +219,14 @@ export default function Retirement() {
         </div>
       </div>
     </div>
+  );
+}
+
+// ─── Page export wrapped in Suspense ──────────────────────────────────────────
+export default function Retirement() {
+  return (
+    <Suspense fallback={<div className="min-h-screen bg-[#1a1a1a]" />}>
+      <RetirementFormInner />
+    </Suspense>
   );
 }

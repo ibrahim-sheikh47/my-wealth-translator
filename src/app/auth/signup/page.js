@@ -14,6 +14,7 @@ import {
   Phone,
   Upload,
   CheckCircle2,
+  Flag,
 } from "lucide-react";
 import Link from "next/link";
 import Image from "next/image";
@@ -38,16 +39,6 @@ const LOCATION_OPTIONS = [
   { value: "miami", label: "Miami, FL" },
 ];
 
-const COUNTRY_CODES = [
-  { value: "+1", label: "🇺🇸 +1" },
-  { value: "+44", label: "🇬🇧 +44" },
-  { value: "+91", label: "🇮🇳 +91" },
-  { value: "+86", label: "🇨🇳 +86" },
-  { value: "+81", label: "🇯🇵 +81" },
-  { value: "+33", label: "🇫🇷 +33" },
-  { value: "+49", label: "🇩🇪 +49" },
-  { value: "+61", label: "🇦🇺 +61" },
-];
 
 const PASSWORD_REQUIREMENTS = [
   { regex: /[A-Z]/, label: "One uppercase letter" },
@@ -72,7 +63,10 @@ export default function SignupPage() {
   } = useForm({
     resolver: yupResolver(signupSchema),
     mode: "onBlur",
-    defaultValues: { countryCode: "+1" },
+    defaultValues: {
+      countryCode: "+1", // Ensure this is set
+      phoneNumber: "",
+    },
   });
 
   const passwordValue = watch("password", "");
@@ -110,16 +104,18 @@ export default function SignupPage() {
     formData.append("lastName", data.lastName);
     formData.append("email", data.email);
     formData.append("location", data.location);
+
+    // Directly prepend +1 or use the default value from hook-form
     formData.append(
       "phoneNumber",
-      `${data.countryCode ?? "+1"}${data.phoneNumber}`,
+      `+1${data.phoneNumber.replace(/\D/g, "")}`, // Regex cleans non-digits if needed
     );
+
     formData.append("password", data.password);
     formData.append("agreeToTerms", data.agreeToTerms);
     if (profilePhoto) formData.append("profilePhoto", profilePhoto);
 
     await signup(formData);
-    // Navigation handled inside useAuth.signup
   };
 
   const displayError = localError || error;
@@ -197,22 +193,24 @@ export default function SignupPage() {
               name="countryCode"
               register={register}
               error={null}
-              select={true}
-              options={COUNTRY_CODES}
               title=""
               customClass="w-24"
+              icon={<span role="img" aria-label="US Flag">🇺🇸</span>}
             />
-            <FormInput
-              label=""
-              name="phoneNumber"
-              register={register}
-              error={errors.phoneNumber}
-              type="tel"
-              placeholder="(123) 456-7890"
-              title=""
-              icon={<Phone size={20} />}
-              customClass="flex-1"
-            />
+            {/* Replace the previous flex gap-2 div with this */}
+            <div className="w-full">
+              <FormInput
+                label=""
+                name="phoneNumber"
+                register={register}
+                error={errors.phoneNumber}
+                type="tel"
+                placeholder="Phone Number (e.g. 123 456 7890) *"
+                title=""
+                icon={<Phone size={20} />}
+                customClass="w-full"
+              />
+            </div>
           </div>
 
           <div className="flex items-start gap-3">

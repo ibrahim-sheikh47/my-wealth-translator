@@ -1,9 +1,9 @@
 // app/living/custom-calculator/page.jsx
-// Route: /living/custom-calculator?fromCity=...&toCity=...&income=...
+// Route: /living/custom-calculator?fromState=...&toState=...&income=...
 
 "use client";
 
-import { Suspense } from "react";
+import { Suspense, useEffect, useState } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import { useForm } from "react-hook-form";
 import { yupResolver } from "@hookform/resolvers/yup";
@@ -14,44 +14,69 @@ import {
   Home,
   Car,
   UtensilsCrossed,
-  Smile,
+  Zap,
   HeartPulse,
 } from "lucide-react";
-import FormInput from "../../components/FormInput";
+
+// --- Firebase Imports ---
+import { doc, getDoc } from "firebase/firestore";
+import { db } from "@/app/lib/firebase";
+import FormInput from "@/app/components/FormInput";
 
 // ─── Validation ───────────────────────────────────────────────────────────────
 const schema = yup.object({
-  housing:        yup.number().typeError("Enter a number").min(0).required("Required"),
-  transportation: yup.number().typeError("Enter a number").min(0).required("Required"),
-  food:           yup.number().typeError("Enter a number").min(0).required("Required"),
-  entertainment:  yup.number().typeError("Enter a number").min(0).required("Required"),
-  healthcare:     yup.number().typeError("Enter a number").min(0).required("Required"),
+  housing: yup.number().typeError("Enter a number").min(0).required("Required"),
+  transportation: yup
+    .number()
+    .typeError("Enter a number")
+    .min(0)
+    .required("Required"),
+  food: yup.number().typeError("Enter a number").min(0).required("Required"),
+  utilities: yup
+    .number()
+    .typeError("Enter a number")
+    .min(0)
+    .required("Required"),
+  healthcare: yup
+    .number()
+    .typeError("Enter a number")
+    .min(0)
+    .required("Required"),
 });
 
 // ─── Category config ──────────────────────────────────────────────────────────
 const CATEGORIES = [
-  { name: "housing",        label: "Housing",       icon: Home,            placeholder: "2543", default: 2543 },
-  { name: "transportation", label: "Transportation", icon: Car,             placeholder: "250",  default: 250  },
-  { name: "food",           label: "Food",           icon: UtensilsCrossed, placeholder: "300",  default: 300  },
-  { name: "entertainment",  label: "Entertainment",  icon: Smile,           placeholder: "100",  default: 100  },
-  { name: "healthcare",     label: "Healthcare",     icon: HeartPulse,      placeholder: "350",  default: 350  },
+  {
+    name: "housing",
+    label: "Housing",
+    icon: Home,
+    placeholder: "Enter your monthly housing cost",
+  },
+  {
+    name: "transportation",
+    label: "Transportation",
+    icon: Car,
+    placeholder: "Enter your monthly transportation cost",
+  },
+  {
+    name: "food",
+    label: "Food",
+    icon: UtensilsCrossed,
+    placeholder: "Enter your monthly food budget",
+  },
+  {
+    name: "utilities",
+    label: "Utilities",
+    icon: Zap,
+    placeholder: "Enter your monthly utilities cost",
+  },
+  {
+    name: "healthcare",
+    label: "Healthcare",
+    icon: HeartPulse,
+    placeholder: "Enter your monthly healthcare cost",
+  },
 ];
-
-// ─── City index ───────────────────────────────────────────────────────────────
-const CITY_INDEX = {
-  "san francisco, ca": 192,
-  "dallas, tx":        101,
-  "new york, ny":      187,
-  "austin, tx":        118,
-  "chicago, il":       107,
-  "los angeles, ca":   173,
-  "miami, fl":         123,
-  "seattle, wa":       150,
-  "denver, co":        128,
-  "boston, ma":        162,
-  default:             100,
-};
-const getIndex = (city) => CITY_INDEX[city?.toLowerCase().trim()] ?? CITY_INDEX.default;
 
 const fmt = (n) =>
   new Intl.NumberFormat("en-US", {
@@ -60,8 +85,8 @@ const fmt = (n) =>
     maximumFractionDigits: 0,
   }).format(n);
 
-// ─── City pair card ───────────────────────────────────────────────────────────
-function CityCard({ fromCity, toCity, income, onEdit }) {
+// ─── State pair card ───────────────────────────────────────────────────────────
+function CityCard({ fromState, toState, income, onEdit }) {
   return (
     <div
       className="rounded-2xl p-4 flex items-center justify-between"
@@ -70,12 +95,15 @@ function CityCard({ fromCity, toCity, income, onEdit }) {
       <div className="space-y-2 text-sm">
         <div className="flex items-center gap-2 text-gray-400">
           <span className="w-2 h-2 rounded-full bg-[#c7a481] inline-block" />
-          {fromCity}
+          {fromState}
         </div>
-        <div className="border-l-2 border-dashed border-gray-600 ml-1 h-3" aria-hidden />
+        <div
+          className="border-l-2 border-dashed border-gray-600 ml-1 h-3"
+          aria-hidden
+        />
         <div className="flex items-center gap-2 text-white font-medium">
           <span className="w-2 h-2 rounded-full bg-white inline-block" />
-          {toCity}
+          {toState}
         </div>
       </div>
       <button
@@ -94,13 +122,50 @@ function CityCard({ fromCity, toCity, income, onEdit }) {
 
 // ─── Inner (needs useSearchParams) ───────────────────────────────────────────
 function CustomCalculatorInner() {
-  const router   = useRouter();
-  const params   = useSearchParams();
-  const fromCity = params.get("fromCity") || "San Francisco, CA";
-  const toCity   = params.get("toCity")   || "Dallas, TX";
-  const income   = Number(params.get("income") || 82000);
+  const router = useRouter();
+  const params = useSearchParams();
+  const fromState = params.get("fromState") || "California";
+  const toState = params.get("toState") || "Texas";
+  const income = Number(params.get("income") || 82000);
 
-  const ratio = getIndex(toCity) / getIndex(fromCity);
+  // ✅ Fetch actual expense data from Firestore (Option B)
+  const [firestoreData, setFirestoreData] = useState(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    async function fetchExpenseData() {
+      try {
+        const fromSnap = await getDoc(doc(db, "cost_of_living", fromState));
+        const toSnap = await getDoc(doc(db, "cost_of_living", toState));
+        if (fromSnap.exists() && toSnap.exists()) {
+          const f = fromSnap.data();
+          const t = toSnap.data();
+          // Store actual index values, not ratios
+          setFirestoreData({
+            from: {
+              housingIdx: f.housing,
+              transIdx: f.trans,
+              foodIdx: f.grocery,
+              utilitiesIdx: f.utilities,
+              healthIdx: f.health,
+            },
+            to: {
+              housingIdx: t.housing,
+              transIdx: t.trans,
+              foodIdx: t.grocery,
+              utilitiesIdx: t.utilities,
+              healthIdx: t.health,
+            },
+          });
+        }
+      } catch (err) {
+        console.error("[v0] Error fetching expense data:", err);
+      } finally {
+        setLoading(false);
+      }
+    }
+    fetchExpenseData();
+  }, [fromState, toState]);
 
   const {
     register,
@@ -108,20 +173,54 @@ function CustomCalculatorInner() {
     formState: { errors },
   } = useForm({
     resolver: yupResolver(schema),
-    defaultValues: Object.fromEntries(CATEGORIES.map((c) => [c.name, c.default])),
+    defaultValues: Object.fromEntries(
+      CATEGORIES.map((c) => [c.name, c.default]),
+    ),
   });
 
   const onSubmit = (data) => {
-    const expenses = CATEGORIES.map((cat) => ({
-      name:  cat.name,
-      label: cat.label,
-      from:  Number(data[cat.name]),
-      to:    Math.round(Number(data[cat.name]) * ratio),
-    }));
+    if (!firestoreData) return;
+
+    // Calculate expense translations using actual index ratios from Firestore
+    const indexMap = {
+      housing: {
+        from: firestoreData.from.housingIdx,
+        to: firestoreData.to.housingIdx,
+      },
+      transportation: {
+        from: firestoreData.from.transIdx,
+        to: firestoreData.to.transIdx,
+      },
+      food: { from: firestoreData.from.foodIdx, to: firestoreData.to.foodIdx },
+      utilities: {
+        from: firestoreData.from.utilitiesIdx,
+        to: firestoreData.to.utilitiesIdx,
+      },
+      healthcare: {
+        from: firestoreData.from.healthIdx,
+        to: firestoreData.to.healthIdx,
+      },
+    };
+
+    const expenses = CATEGORIES.map((cat) => {
+      const userInput = Number(data[cat.name]);
+      const indices = indexMap[cat.name];
+
+      // Apply ratio: user_input * (toIndex / fromIndex)
+      const ratio = indices.to / indices.from;
+      const translatedExpense = Math.round(userInput * ratio);
+
+      return {
+        name: cat.name,
+        label: cat.label,
+        from: userInput,
+        to: translatedExpense,
+      };
+    });
 
     const detailParams = new URLSearchParams({
-      fromCity,
-      toCity,
+      fromState,
+      toState,
       income,
       expenses: JSON.stringify(expenses),
     });
@@ -129,12 +228,21 @@ function CustomCalculatorInner() {
     router.push(`/living/custom-calculator/detail?${detailParams.toString()}`);
   };
 
-  const editUrl = `/living/detail?fromCity=${encodeURIComponent(fromCity)}&toCity=${encodeURIComponent(toCity)}&income=${income}`;
+  const editUrl = `/living/detail?fromState=${encodeURIComponent(fromState)}&toState=${encodeURIComponent(toState)}&income=${income}`;
+
+  if (loading)
+    return (
+      <div className="min-h-screen bg-[#1a1a1a] flex items-center justify-center">
+        <div className="animate-spin rounded-full h-10 w-10 border-t-2 border-[#c7a481]" />
+      </div>
+    );
 
   return (
-    <div className="min-h-screen text-white" style={{ backgroundColor: "#1a1a1a" }}>
+    <div
+      className="min-h-screen text-white"
+      style={{ backgroundColor: "#1a1a1a" }}
+    >
       <div className="px-5 py-8 lg:px-8 lg:py-12">
-
         {/* Back */}
         <button
           onClick={() => router.back()}
@@ -146,16 +254,15 @@ function CustomCalculatorInner() {
 
         {/* Heading */}
         <h1 className="text-3xl lg:text-4xl font-extrabold mb-1 leading-tight">
-          Your custom{" "}
-          <span className="text-[#c7a481]">living expense</span>{" "}
+          Your custom <span className="text-[#c7a481]">living expense</span>{" "}
           calculator
         </h1>
 
-        {/* City card */}
+        {/* State card */}
         <div className="mt-6">
           <CityCard
-            fromCity={fromCity}
-            toCity={toCity}
+            fromState={fromState}
+            toState={toState}
             income={income}
             onEdit={() => router.push(editUrl)}
           />
@@ -181,18 +288,22 @@ function CustomCalculatorInner() {
                     >
                       <Icon size={15} className="text-[#c7a481]" />
                     </div>
-                    <span className="text-white font-semibold text-sm">{cat.label}</span>
+                    <span className="text-white font-semibold text-sm">
+                      {cat.label}
+                    </span>
                   </div>
 
                   <FormInput
-                    title="Expense"
-                    name={cat.name}
                     type="number"
+                    placeholder={cat.placeholder}
+                    title={cat.label}
+                    name={cat.name}
                     register={register}
                     error={errors[cat.name]}
-                    placeholder={cat.placeholder}
                     icon={
-                      <span className="text-xs font-bold text-[#c7a481]">$</span>
+                      <span className="text-xs font-bold text-[#c7a481]">
+                        $
+                      </span>
                     }
                   />
                 </div>

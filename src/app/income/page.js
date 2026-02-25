@@ -58,7 +58,7 @@ export default function Income() {
       style={{ backgroundColor: "#1a1a1a" }}
     >
       <GoodMorning />
-      <div className="mt-10">
+      {/* <div className="mt-10">
         <h1 className="md:text-4xl text-3xl font-bold mb-2">
           Translate your
           <span className="text-[#c7a481]"> current income</span>
@@ -184,6 +184,9 @@ export default function Income() {
             </div>
           </form>
         </div>
+      </div> */}
+      <div className="justify-center items-center h-screen -mt-40 flex">
+        TO BE DEVELOPED
       </div>
     </div>
   );

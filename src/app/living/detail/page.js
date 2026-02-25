@@ -11,6 +11,7 @@ import {
   ChevronDown,
   ChevronUp,
   Pencil,
+  Zap,
 } from "lucide-react";
 import { useRouter, useSearchParams } from "next/navigation";
 import GoodMorning from "@/app/components/GoodMorning";
@@ -21,16 +22,26 @@ import { doc, getDoc } from "firebase/firestore";
 import { db } from "@/app/lib/firebase";
 
 // ─── Utility ────────────────────────────────────────────────────────────────
-const fmt = (n) =>
-  new Intl.NumberFormat("en-US", {
+const fmt = (n) => {
+  if (n < 100) {
+    // Small values like gas price — show 2 decimals
+    return new Intl.NumberFormat("en-US", {
+      style: "currency",
+      currency: "USD",
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2,
+    }).format(n);
+  }
+  // Large values like rent, home price — no decimals needed
+  return new Intl.NumberFormat("en-US", {
     style: "currency",
     currency: "USD",
     maximumFractionDigits: 0,
   }).format(n);
-
+};
 // ─── Sub-components ──────────────────────────────────────────────────────────
 
-function CityCard({ fromCity, toCity, income, onEdit }) {
+function StateCard({ fromState, toState, income, onEdit }) {
   return (
     <div
       className="rounded-2xl p-4 flex items-center justify-between"
@@ -39,12 +50,12 @@ function CityCard({ fromCity, toCity, income, onEdit }) {
       <div className="space-y-2 text-sm">
         <div className="flex items-center gap-2 text-gray-400">
           <span className="w-2 h-2 rounded-full bg-[#c7a481] inline-block" />
-          {fromCity}
+          {fromState}
         </div>
         <div className="border-l-2 border-dashed border-gray-600 ml-1 h-3" />
         <div className="flex items-center gap-2 text-white font-medium">
           <span className="w-2 h-2 rounded-full bg-white inline-block" />
-          {toCity}
+          {toState}
         </div>
       </div>
       <button
@@ -82,21 +93,29 @@ function CountUp({ target, prefix = "$", duration = 1200 }) {
   );
 }
 
-function IncomeBarChart({ fromCity, toCity, fromIncome, toIncome, barMax }) {
+function IncomeBarChart({ fromState, toState, fromIncome, toIncome, barMax }) {
   const fromH = (fromIncome / barMax) * 100;
   const toH = (toIncome / barMax) * 100;
-  const ticks = [0, 20000, 40000, 60000, 80000, 100000];
+
+  // ✅ Ticks always derived from barMax — never hardcoded
+  const tickStep = barMax / 5;
+  const ticks = Array.from({ length: 6 }, (_, i) => i * tickStep);
+  const fmtTick = (v) => {
+    if (v === 0) return "$0";
+    if (v >= 1000000) return `$${(v / 1000000).toFixed(1)}M`;
+    return `$${Math.round(v / 1000)}k`;
+  };
 
   return (
     <div className="relative w-full mt-10">
-      <div className="absolute left-0 top-0 bottom-8 w-12 flex flex-col-reverse justify-between pb-1">
+      <div className="absolute left-0 top-0 bottom-8 w-16 flex flex-col-reverse justify-between pb-1">
         {ticks.map((t) => (
           <span key={t} className="text-xs text-gray-500">
-            {t === 0 ? "$0" : `$${t / 1000}k`}
+            {fmtTick(t)}
           </span>
         ))}
       </div>
-      <div className="ml-14 flex items-end gap-8 h-52">
+      <div className="ml-18 flex items-end gap-8 h-52">
         <div className="flex flex-col items-center flex-1 h-full justify-end">
           <span className="text-base font-bold text-white mb-1">
             {fmt(fromIncome)}
@@ -105,7 +124,7 @@ function IncomeBarChart({ fromCity, toCity, fromIncome, toIncome, barMax }) {
             className="w-full rounded-t-lg transition-all duration-1000"
             style={{ height: `${fromH}%`, backgroundColor: "#c7a481" }}
           />
-          <span className="text-xs text-gray-400 mt-1">{fromCity}</span>
+          <span className="text-xs text-gray-400 mt-1">{fromState}</span>
         </div>
         <div className="flex flex-col items-center flex-1 h-full justify-end">
           <span className="text-base font-bold text-white mb-1">
@@ -115,14 +134,14 @@ function IncomeBarChart({ fromCity, toCity, fromIncome, toIncome, barMax }) {
             className="w-full rounded-t-lg transition-all duration-1000"
             style={{ height: `${toH}%`, backgroundColor: "#f5e6d0" }}
           />
-          <span className="text-xs text-gray-400 mt-1">{toCity}</span>
+          <span className="text-xs text-gray-400 mt-1">{toState}</span>
         </div>
       </div>
     </div>
   );
 }
 
-function CategoryRow({ cat, fromCity, toCity }) {
+function CategoryRow({ cat, fromState, toState }) {
   const [open, setOpen] = useState(cat.id === "housing");
   const { icon: Icon } = cat;
 
@@ -170,9 +189,9 @@ function CategoryRow({ cat, fromCity, toCity }) {
           <div className="grid grid-cols-3 text-xs text-gray-500 mb-3 border-t border-white/5 pt-4">
             <span />
             <span className="text-center" style={{ color: "#c7a481" }}>
-              {fromCity}
+              {fromState}
             </span>
-            <span className="text-center text-gray-300">{toCity}</span>
+            <span className="text-center text-gray-300">{toState}</span>
           </div>
           <div className="space-y-3">
             {cat.rows.map((row) => (
@@ -201,28 +220,59 @@ export default function LivingDetail() {
   const router = useRouter();
   const searchParams = useSearchParams();
 
-  const fromCity = searchParams.get("fromCity") || "California";
-  const toCity = searchParams.get("toCity") || "Texas";
+  // ✅ Correct param names matching Living.jsx onSubmit
+  const fromState = searchParams.get("fromState") || "California";
+  const toState = searchParams.get("toState") || "Texas";
   const fromIncome = Number(searchParams.get("income")) || 82000;
 
-  const [dbData, setDbData] = useState({
-    fromIdx: 100,
-    toIdx: 100,
-    updated: "...",
-  });
+  const [dbData, setDbData] = useState(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     async function fetchLivingData() {
       try {
         setLoading(true);
-        const fromSnap = await getDoc(doc(db, "cost_of_living", fromCity));
-        const toSnap = await getDoc(doc(db, "cost_of_living", toCity));
+        const fromSnap = await getDoc(doc(db, "cost_of_living", fromState));
+        const toSnap = await getDoc(doc(db, "cost_of_living", toState));
+
         if (fromSnap.exists() && toSnap.exists()) {
+          const f = fromSnap.data();
+          const t = toSnap.data();
+
           setDbData({
-            fromIdx: fromSnap.data().index,
-            toIdx: toSnap.data().index,
-            updated: toSnap.data().lastUpdated,
+            // Overall index
+            fromIdx: f.index,
+            toIdx: t.index,
+
+            // Housing — index for % badge, dollar values for rows
+            fromHousingIdx: f.housing,
+            toHousingIdx: t.housing,
+            fromMedianRent: f.medianRent,
+            toMedianRent: t.medianRent,
+            fromMedianHome: f.medianHome,
+            toMedianHome: t.medianHome,
+
+            // Transportation — index for % badge, dollar value for row
+            fromTransIdx: f.trans,
+            toTransIdx: t.trans,
+            fromGasPrice: f.gasPrice,
+            toGasPrice: t.gasPrice,
+
+            // Utilities — index for % badge, dollar value for row
+            fromUtilitiesIdx: f.utilities,
+            toUtilitiesIdx: t.utilities,
+            fromElecBill: f.elecBill,
+            toElecBill: t.elecBill,
+
+            // Groceries — index is the only value (used for both % badge and row display)
+            fromGroceryIdx: f.grocery,
+            toGroceryIdx: t.grocery,
+
+            // Healthcare — index for % badge, dollar value for row
+            fromHealthIdx: f.health,
+            toHealthIdx: t.health,
+            fromDocVisit: f.docVisit,
+            toDocVisit: t.docVisit,
           });
         }
       } catch (err) {
@@ -232,83 +282,126 @@ export default function LivingDetail() {
       }
     }
     fetchLivingData();
-  }, [fromCity, toCity]);
+  }, [fromState, toState]);
 
   const processedData = useMemo(() => {
-    const ratio = dbData.toIdx / dbData.fromIdx;
-    const toIncome = fromIncome * ratio;
-    const pctChange = ((toIncome - fromIncome) / fromIncome) * 100;
-    const isLower = toIncome < fromIncome;
+    if (!dbData) return null;
+
+    const wealthRatio = dbData.toIdx / dbData.fromIdx;
+    const translatedIncome = fromIncome * wealthRatio;
+    // ✅ Align barMax to a clean tick boundary just above the larger value
+    const maxVal = Math.max(fromIncome, translatedIncome);
+    const rawStep = (maxVal * 1.15) / 5;
+    const tickStep = Math.ceil(rawStep / 5000) * 5000;
+    const barMax = tickStep * 5;
+
+  const categories = [
+  {
+    id: "housing",
+    label: "Housing",
+    icon: Home,
+    fromIdx: dbData.fromMedianRent,
+    toIdx: dbData.toMedianRent,
+    rows: [
+      {
+        label: "Median Rent / mo",
+        from: dbData.fromMedianRent,
+        to: dbData.toMedianRent,
+      },
+      {
+        label: "Median Home Value",
+        from: dbData.fromMedianHome,
+        to: dbData.toMedianHome,
+      },
+    ],
+  },
+  {
+    id: "groceries",
+    label: "Groceries",
+    icon: UtensilsCrossed,
+    fromIdx: dbData.fromGroceryIdx,
+    toIdx: dbData.toGroceryIdx,
+    rows: [
+      {
+        label: "Monthly Budget Est.",
+        from: Math.round(400 * (dbData.fromGroceryIdx / 100)),
+        to: Math.round(400 * (dbData.toGroceryIdx / 100)),
+      },
+    ],
+  },
+  {
+    id: "transportation",
+    label: "Transportation",
+    icon: Car,
+    fromIdx: dbData.fromGasPrice,
+    toIdx: dbData.toGasPrice,
+    rows: [
+      {
+        label: "Gas Price / gal",
+        from: dbData.fromGasPrice,
+        to: dbData.toGasPrice,
+      },
+    ],
+  },
+  {
+    id: "utilities",
+    label: "Utilities",
+    icon: Zap,
+    fromIdx: dbData.fromElecBill,
+    toIdx: dbData.toElecBill,
+    rows: [
+      {
+        label: "Avg Electric Bill / mo",
+        from: dbData.fromElecBill,
+        to: dbData.toElecBill,
+      },
+    ],
+  },
+  {
+    id: "health",
+    label: "Healthcare",
+    icon: HeartPulse,
+    fromIdx: dbData.fromDocVisit,
+    toIdx: dbData.toDocVisit,
+    rows: [
+      {
+        label: "Doctor Visit (cash)",
+        from: dbData.fromDocVisit,
+        to: dbData.toDocVisit,
+      },
+    ],
+  },
+];
+
+    const enrichedCategories = categories.map((cat) => {
+      const ratio = cat.toIdx / cat.fromIdx;
+      return {
+        ...cat,
+        pct: Math.abs(Math.round((ratio - 1) * 100)),
+        dir: ratio < 1 ? "lower" : "higher",
+      };
+    });
 
     return {
-      toIncome,
-      pct: Math.abs(Math.round(pctChange)),
-      dir: isLower ? "lower" : "higher",
-      barMax: Math.max(fromIncome, toIncome) * 1.2,
-      categories: [
-        {
-          id: "housing",
-          label: "Housing",
-          icon: Home,
-          pct: Math.abs(Math.round(pctChange * 1.1)),
-          dir: isLower ? "lower" : "higher",
-          rows: [
-            { label: "Median Rent", from: 2400, to: 2400 * ratio },
-            { label: "Home Price", from: 650000, to: 650000 * ratio },
-          ],
-        },
-        {
-          id: "transportation",
-          label: "Transportation",
-          icon: Car,
-          pct: Math.abs(Math.round(pctChange * 0.95)),
-          dir: isLower ? "lower" : "higher",
-          rows: [
-            { label: "Gas (Gal)", from: 4.5, to: 4.5 * ratio },
-            { label: "Insurance", from: 150, to: 150 * ratio },
-          ],
-        },
-        {
-          id: "food",
-          label: "Food & Dining",
-          icon: UtensilsCrossed,
-          pct: Math.abs(Math.round(pctChange * 0.9)),
-          dir: isLower ? "lower" : "higher",
-          rows: [
-            { label: "Groceries", from: 550, to: 550 * ratio },
-            { label: "Restaurant", from: 30, to: 30 * ratio },
-          ],
-        },
-        {
-          id: "health",
-          label: "Health Care",
-          icon: HeartPulse,
-          pct: Math.abs(Math.round(pctChange * 1.05)),
-          dir: isLower ? "lower" : "higher",
-          rows: [
-            { label: "Doctor Visit", from: 120, to: 120 * ratio },
-            { label: "Medication", from: 60, to: 60 * ratio },
-          ],
-        },
-        {
-          id: "entertainment",
-          label: "Entertainment",
-          icon: Smile,
-          pct: Math.abs(Math.round(pctChange * 0.85)),
-          dir: isLower ? "lower" : "higher",
-          rows: [
-            { label: "Movie Ticket", from: 15, to: 15 * ratio },
-            { label: "Gym Member", from: 50, to: 50 * ratio },
-          ],
-        },
-      ],
+      translatedIncome,
+      barMax,
+      overallPct: Math.abs(Math.round((wealthRatio - 1) * 100)),
+      overallDir: wealthRatio < 1 ? "lower" : "higher",
+      categories: enrichedCategories,
     };
   }, [dbData, fromIncome]);
 
   if (loading)
     return (
-      <div className="min-h-screen bg-[#1a1a1a] flex items-center justify-center text-[#c7a481]">
-        Loading...
+      <div className="min-h-screen bg-[#1a1a1a] flex items-center justify-center">
+        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-[#c7a481]"></div>
+      </div>
+    );
+
+  if (!processedData)
+    return (
+      <div className="min-h-screen bg-[#1a1a1a] flex items-center justify-center text-gray-400">
+        No data found for selected states.
       </div>
     );
 
@@ -318,7 +411,7 @@ export default function LivingDetail() {
         <div className="flex justify-between items-center mb-6">
           <GoodMorning />
           <span className="text-[10px] text-gray-500 uppercase tracking-widest">
-            Verified: {dbData.updated}
+            Verified: Feb 2026
           </span>
         </div>
         <div className="my-10">
@@ -330,33 +423,37 @@ export default function LivingDetail() {
 
         <div className="md:flex items-start gap-10">
           <div className="w-full flex-1">
-            <CityCard
-              fromCity={fromCity}
-              toCity={toCity}
+            <StateCard
+              fromState={fromState}
+              toState={toState}
               income={fromIncome}
               onEdit={() => router.back()}
             />
             <div className="mt-8 mb-2">
               <p className="text-gray-400 text-sm my-5">
-                In {toCity}, you'll need a household income of
+                In {toState}, you'll need a household income of
               </p>
               <div className="flex items-center gap-3">
                 <h2 className="text-4xl lg:text-5xl font-extrabold text-[#c7a481]">
-                  <CountUp target={processedData.toIncome} />
+                  <CountUp target={processedData.translatedIncome} />
                 </h2>
                 <span
-                  className={`text-sm font-bold px-3 py-1.5 rounded-full ${processedData.dir === "lower" ? "bg-green-500/10 text-green-400" : "bg-red-500/10 text-red-400"}`}
+                  className={`text-sm font-bold px-3 py-1.5 rounded-full ${
+                    processedData.overallDir === "lower"
+                      ? "bg-green-500/10 text-green-400"
+                      : "bg-red-500/10 text-red-400"
+                  }`}
                 >
-                  {processedData.dir === "lower" ? "↓" : "↑"}{" "}
-                  {processedData.pct}%
+                  {processedData.overallDir === "lower" ? "↓" : "↑"}{" "}
+                  {processedData.overallPct}%
                 </span>
               </div>
             </div>
             <IncomeBarChart
-              fromCity={fromCity}
-              toCity={toCity}
+              fromState={fromState}
+              toState={toState}
               fromIncome={fromIncome}
-              toIncome={processedData.toIncome}
+              toIncome={processedData.translatedIncome}
               barMax={processedData.barMax}
             />
           </div>
@@ -370,8 +467,8 @@ export default function LivingDetail() {
                 <CategoryRow
                   key={cat.id}
                   cat={cat}
-                  fromCity={fromCity}
-                  toCity={toCity}
+                  fromState={fromState}
+                  toState={toState}
                 />
               ))}
             </div>
@@ -383,7 +480,7 @@ export default function LivingDetail() {
             title={"Custom expense calculator"}
             onClick={() =>
               router.push(
-                `/living/custom-calculator?fromCity=${fromCity}&toCity=${toCity}&income=${fromIncome}`,
+                `/living/custom-calculator?fromState=${fromState}&toState=${toState}&income=${fromIncome}`,
               )
             }
           />

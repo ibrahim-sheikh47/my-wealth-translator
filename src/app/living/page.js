@@ -75,10 +75,11 @@ const US_STATES = [
 ];
 
 const INCOME_RANGES = [
-  { label: "$50,000 - $75,000", value: "62500" },
-  { label: "$75,000 - $100,000", value: "87500" },
-  { label: "$100,000 - $150,000", value: "125000" },
-  { label: "$150,000 - $250,000", value: "200000" },
+  { label: "$50000 - $60000", value: "55000" },
+  { label: "$60000 - $70000", value: "65000" },
+  { label: "$70000 - $80000", value: "75000" },
+  { label: "$80000 - $90000", value: "85000" },
+  { label: "$90000 - $100000", value: "95000" },
   { label: "-- Enter Custom Amount --", value: "custom_income" },
 ];
 
@@ -100,9 +101,8 @@ export default function Living() {
   } = useForm({
     resolver: yupResolver(moveSchema),
     defaultValues: {
-      currentCity: "California",
+      currentState: "California",
       targetCity: "Texas",
-      income: "87500",
     },
   });
 
@@ -119,7 +119,7 @@ export default function Living() {
     if (tempIncome) {
       setValue("income", tempIncome);
     } else {
-      setValue("income", "87500"); // Fallback if they leave it empty
+      setValue("income"); // Fallback if they leave it empty
     }
     setOpen(false);
   };
@@ -140,13 +140,14 @@ export default function Living() {
 
   const onSubmit = (data) => {
     const params = new URLSearchParams({
-      fromCity: data.currentCity,
-      toCity: data.targetCity,
+      fromState: data.currentState,
+      toState: data.targetState,
       income: data.income,
     });
     router.push(`/living/detail?${params.toString()}`);
   };
 
+  const isPresetIncome = INCOME_RANGES.some((o) => o.value === watchedIncome);
   return (
     <div
       className="min-h-screen text-white px-6 py-8 lg:px-12 lg:py-12"
@@ -168,9 +169,9 @@ export default function Living() {
               options={US_STATES}
               label="I currently live in"
               title="State"
-              name="currentCity"
+              name="currentState"
               register={register}
-              error={errors.currentCity}
+              error={errors.currentState}
               icon={<MapPin />}
             />
 
@@ -179,14 +180,14 @@ export default function Living() {
               options={US_STATES}
               label="I want to move to"
               title="State"
-              name="targetCity"
+              name="targetState"
               register={register}
-              error={errors.targetCity}
+              error={errors.targetState}
               icon={<MapPin />}
             />
 
             <FormInput
-              select={watchedIncome === "custom_income" ? false : true} // Toggle to manual input if custom is set
+              select={isPresetIncome || !watchedIncome} // ✅ show select only for preset values
               options={INCOME_RANGES}
               label="My pre-tax household income is"
               title="Income"
@@ -197,6 +198,15 @@ export default function Living() {
               icon={<HandCoinsIcon />}
               placeholder="e.g. 82000"
             />
+            {!isPresetIncome && watchedIncome && (
+              <button
+                type="button"
+                onClick={() => setValue("income")} // reset to show select again
+                className="text-xs text-[#c7a481] underline mt-1 ml-auto flex cursor-pointer"
+              >
+                ← Back to income ranges
+              </button>
+            )}
 
             <div className="mt-10">
               <Btn type="submit" title="Calculate" />
@@ -218,7 +228,7 @@ export default function Living() {
         open={open}
         onClose={() => {
           setOpen(false);
-          if (watchedIncome === "custom_income") setValue("income", "87500");
+          if (watchedIncome === "custom_income") setValue("income");
         }}
         PaperProps={{
           sx: {
@@ -258,7 +268,7 @@ export default function Living() {
             <Button
               onClick={() => {
                 setOpen(false);
-                setValue("income", "87500");
+                setValue("income");
               }}
               sx={{ color: "#aaa" }}
             >

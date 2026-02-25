@@ -92,13 +92,13 @@ export const signupSchema = yup.object({
 // ============================================
 
 export const moveSchema = yup.object({
-  currentCity: yup
+  currentState: yup
     .string()
-    .required('Current city is required'),
+    .required('Current state is required'),
 
-  targetCity: yup
+  targetState: yup
     .string()
-    .required('Target city is required'),
+    .required('Target state is required'),
 
   income: yup
     .number()

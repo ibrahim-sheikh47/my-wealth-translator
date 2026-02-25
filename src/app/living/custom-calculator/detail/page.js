@@ -1,5 +1,5 @@
 // app/living/custom-calculator/detail/page.jsx
-// Route: /living/custom-calculator/detail?fromCity=...&toCity=...&income=...&expenses=[...]
+// Route: /living/custom-calculator/detail?fromState=...&toState=...&income=...&expenses=[...]
 
 "use client";
 
@@ -11,7 +11,7 @@ import {
   Home,
   Car,
   UtensilsCrossed,
-  Smile,
+  Zap,
   HeartPulse,
   ChevronDown,
   ChevronUp,
@@ -29,24 +29,24 @@ const fmt = (n) =>
   }).format(n);
 
 const ICON_MAP = {
-  housing:        Home,
+  housing: Home,
   transportation: Car,
-  food:           UtensilsCrossed,
-  entertainment:  Smile,
-  healthcare:     HeartPulse,
+  food: UtensilsCrossed,
+  utilities: Zap,
+  healthcare: HeartPulse,
 };
 
 // Fallback demo data (used if no URL params)
 const FALLBACK_EXPENSES = [
-  { name: "housing",        label: "Housing",       from: 3862, to: 1588 },
+  { name: "housing", label: "Housing", from: 3862, to: 1588 },
   { name: "transportation", label: "Transportation", from: 2340, to: 1520 },
-  { name: "food",           label: "Food",           from: 620,  to: 490  },
-  { name: "entertainment",  label: "Entertainment",  from: 85,   to: 55   },
-  { name: "healthcare",     label: "Healthcare",     from: 280,  to: 160  },
+  { name: "food", label: "Food", from: 620, to: 490 },
+  { name: "utilities", label: "Utilities", from: 280, to: 175 },
+  { name: "healthcare", label: "Healthcare", from: 350, to: 210 },
 ];
 
-// ─── City Pair Card ───────────────────────────────────────────────────────────
-function CityCard({ fromCity, toCity, income, onEdit }) {
+// ─── State Pair Card ───────────────────────────────────────────────────────────
+function CityCard({ fromState, toState, income, onEdit }) {
   return (
     <div
       className="rounded-2xl p-4 flex items-center justify-between"
@@ -55,12 +55,15 @@ function CityCard({ fromCity, toCity, income, onEdit }) {
       <div className="space-y-2 text-sm">
         <div className="flex items-center gap-2 text-gray-400">
           <span className="w-2 h-2 rounded-full bg-[#c7a481] inline-block" />
-          {fromCity}
+          {fromState}
         </div>
-        <div className="border-l-2 border-dashed border-gray-600 ml-1 h-3" aria-hidden />
+        <div
+          className="border-l-2 border-dashed border-gray-600 ml-1 h-3"
+          aria-hidden
+        />
         <div className="flex items-center gap-2 text-white font-medium">
           <span className="w-2 h-2 rounded-full bg-white inline-block" />
-          {toCity}
+          {toState}
         </div>
       </div>
       <button
@@ -78,42 +81,44 @@ function CityCard({ fromCity, toCity, income, onEdit }) {
 }
 
 // ─── Accordion category row ───────────────────────────────────────────────────
-function CategoryRow({ expense, fromCity, toCity, isFirst }) {
+function CategoryRow({ expense, fromState, toState, isFirst }) {
   const [open, setOpen] = useState(isFirst);
-  const Icon   = ICON_MAP[expense.name] ?? Home;
-  const diff   = expense.to - expense.from;
-  const pct    = Math.abs(Math.round((diff / expense.from) * 100));
-  const lower  = diff <= 0;
+  const Icon = ICON_MAP[expense.name] ?? Home;
+  const diff = expense.to - expense.from;
+  const pct = Math.abs(Math.round((diff / expense.from) * 100));
+  const lower = diff <= 0;
 
-  // Extra detail rows (illustrative per category)
+  // ✅ Detail rows built purely from real expense.from / expense.to
   const DETAIL_ROWS = {
     housing: [
-      { label: "Median Rent (2BR)",       from: expense.from * 1.5,  to: expense.to * 1.5  },
-      { label: "Median Home Price (3BR)", from: expense.from * 363,  to: expense.to * 306  },
+      { label: "Monthly Budget", from: expense.from, to: expense.to },
+      { label: "Annual Cost", from: expense.from * 12, to: expense.to * 12 },
     ],
     transportation: [
-      { label: "Monthly Transit Pass", from: expense.from * 0.046, to: expense.to * 0.063 },
-      { label: "Gas (per gallon)",      from: 4.89,                 to: 3.12               },
-      { label: "Car Insurance (yr)",    from: expense.from,         to: expense.to          },
+      { label: "Monthly Budget", from: expense.from, to: expense.to },
+      { label: "Annual Cost", from: expense.from * 12, to: expense.to * 12 },
     ],
     food: [
-      { label: "Groceries (mo.)",       from: expense.from,         to: expense.to          },
-      { label: "Restaurant meal",       from: 28,                   to: 18                  },
+      { label: "Monthly Budget", from: expense.from, to: expense.to },
+      { label: "Annual Cost", from: expense.from * 12, to: expense.to * 12 },
     ],
-    entertainment: [
-      { label: "Gym Membership",        from: expense.from,         to: expense.to          },
-      { label: "Movie Ticket",          from: 18,                   to: 13                  },
+    utilities: [
+      { label: "Monthly Budget", from: expense.from, to: expense.to },
+      { label: "Annual Cost", from: expense.from * 12, to: expense.to * 12 },
     ],
     healthcare: [
-      { label: "Dr. Visit",             from: expense.from,         to: expense.to          },
-      { label: "Rx (monthly)",          from: 95,                   to: 78                  },
+      { label: "Monthly Budget", from: expense.from, to: expense.to },
+      { label: "Annual Cost", from: expense.from * 12, to: expense.to * 12 },
     ],
   };
 
-  const rows = DETAIL_ROWS[expense.name] ?? [];
+  const rows = (DETAIL_ROWS[expense.name] ?? []).filter((r) => !r.isNote);
 
   return (
-    <div className="rounded-2xl overflow-hidden" style={{ backgroundColor: "#2a2a2a" }}>
+    <div
+      className="rounded-2xl overflow-hidden"
+      style={{ backgroundColor: "#2a2a2a" }}
+    >
       <button
         onClick={() => setOpen((o) => !o)}
         className="w-full flex items-center justify-between px-5 py-4 text-left transition-colors hover:bg-white/5"
@@ -125,7 +130,9 @@ function CategoryRow({ expense, fromCity, toCity, isFirst }) {
           >
             <Icon size={17} className="text-[#c7a481]" />
           </div>
-          <span className="text-white font-semibold text-sm">{expense.label}</span>
+          <span className="text-white font-semibold text-sm">
+            {expense.label}
+          </span>
         </div>
         <div className="flex items-center gap-3">
           <span
@@ -139,9 +146,11 @@ function CategoryRow({ expense, fromCity, toCity, isFirst }) {
           >
             {lower ? "↓" : "↑"} {pct}% {lower ? "lower" : "higher"}
           </span>
-          {open
-            ? <ChevronUp  size={16} className="text-gray-500" />
-            : <ChevronDown size={16} className="text-gray-500" />}
+          {open ? (
+            <ChevronUp size={16} className="text-gray-500" />
+          ) : (
+            <ChevronDown size={16} className="text-gray-500" />
+          )}
         </div>
       </button>
 
@@ -149,21 +158,34 @@ function CategoryRow({ expense, fromCity, toCity, isFirst }) {
         <div className="px-5 pb-5">
           <div className="grid grid-cols-3 text-xs text-gray-500 mb-3 border-t border-white/5 pt-4">
             <span />
-            <span className="text-center font-medium" style={{ color: "#c7a481" }}>
-              {fromCity.split(",")[0]}
+            <span
+              className="text-center font-medium"
+              style={{ color: "#c7a481" }}
+            >
+              {fromState}
             </span>
             <span className="text-center font-medium text-gray-300">
-              {toCity.split(",")[0]}
+              {toState}
             </span>
           </div>
           <div className="space-y-3">
             {rows.map((row) => (
-              <div key={row.label} className="grid grid-cols-3 text-sm items-center">
-                <span className="text-gray-400 text-xs leading-tight pr-2">{row.label}</span>
-                <span className="text-center font-semibold" style={{ color: "#c7a481" }}>
+              <div
+                key={row.label}
+                className="grid grid-cols-3 text-sm items-center"
+              >
+                <span className="text-gray-400 text-xs leading-tight pr-2">
+                  {row.label}
+                </span>
+                <span
+                  className="text-center font-semibold"
+                  style={{ color: "#c7a481" }}
+                >
                   {fmt(row.from)}
                 </span>
-                <span className="text-center font-semibold text-gray-200">{fmt(row.to)}</span>
+                <span className="text-center font-semibold text-gray-200">
+                  {fmt(row.to)}
+                </span>
               </div>
             ))}
           </div>
@@ -175,38 +197,60 @@ function CategoryRow({ expense, fromCity, toCity, isFirst }) {
 
 // ─── Bar chart ────────────────────────────────────────────────────────────────
 function ExpenseBarChart({ expenses, activeIndex, setActiveIndex }) {
-  const allValues  = expenses.flatMap((e) => [e.from, e.to]);
-  const maxVal     = Math.max(...allValues);
-  const chartMax   = Math.ceil((maxVal * 1.2) / 10000) * 10000;
+  const allValues = expenses.flatMap((e) => [e.from, e.to]);
+  const maxVal = Math.max(...allValues);
+  // ✅ Round up to nearest clean number relative to scale — works for $100 or $10,000
+  const magnitude = Math.pow(10, Math.floor(Math.log10(maxVal)));
+  const chartMax = Math.ceil((maxVal * 1.2) / magnitude) * magnitude;
 
-  // Y-axis ticks
   const tickCount = 5;
+  const tickStep = chartMax / tickCount;
   const ticks = Array.from({ length: tickCount + 1 }, (_, i) =>
-    Math.round((chartMax / tickCount) * i)
+    Math.round(tickStep * i),
   );
 
   const BAR_FROM = "#c7a481";
-  const BAR_TO   = "#3a3a3a";
-  const ACTIVE   = "#8b1c1c";
+  const BAR_TO = "#3a3a3a";
+  const ACTIVE = "#8b1c1c";
 
   return (
-    <div className="relative w-full mt-6" style={{ backgroundColor: "#2a2a2a", borderRadius: 16, padding: "20px 16px 12px" }}>
+    <div
+      className="relative w-full mt-6"
+      style={{
+        backgroundColor: "#2a2a2a",
+        borderRadius: 16,
+        padding: "20px 16px 12px",
+      }}
+    >
       <div className="flex gap-0">
         {/* Y-axis */}
-        <div className="flex flex-col-reverse justify-between w-10 pr-2" style={{ height: 160 }}>
+        <div
+          className="flex flex-col-reverse justify-between w-10 pr-2"
+          style={{ height: 160 }}
+        >
           {ticks.map((t) => (
-            <span key={t} className="text-xs text-gray-500 leading-none text-right block">
-              {t === 0 ? "$0" : t >= 1000 ? `$${Math.round(t / 1000)}k` : `$${t}`}
+            <span
+              key={t}
+              className="text-xs text-gray-500 leading-none text-right block"
+            >
+              {t === 0
+                ? "$0"
+                : t >= 1000
+                  ? `$${Math.round(t / 1000)}k`
+                  : `$${t}`}
             </span>
           ))}
         </div>
 
         {/* Bars area */}
-        <div className="flex-1 flex items-end justify-around gap-1" style={{ height: 160 }}>
+        <div
+          className="flex-1 flex items-end justify-around gap-1"
+          style={{ height: 160 }}
+        >
           {expenses.map((exp, i) => {
-            const Icon     = ICON_MAP[exp.name] ?? Home;
-            const fromH    = Math.max((exp.from / chartMax) * 100, 2);
-            const toH      = Math.max((exp.to   / chartMax) * 100, 2);
+            const Icon = ICON_MAP[exp.name] ?? Home;
+            const fromH = Math.max((exp.from / chartMax) * 100, 2);
+            const toH = Math.max((exp.to / chartMax) * 100, 2);
             const isActive = activeIndex === i;
 
             return (
@@ -227,23 +271,26 @@ function ExpenseBarChart({ expenses, activeIndex, setActiveIndex }) {
                   </div>
                 )}
 
-                <div className="flex items-end gap-0.5 w-full" style={{ height: "100%" }}>
+                <div
+                  className="flex items-end gap-0.5 w-full"
+                  style={{ height: "100%" }}
+                >
                   {/* From bar */}
                   <div
                     className="flex-1 rounded-t-sm transition-all duration-700"
                     style={{
-                      height:          `${fromH}%`,
+                      height: `${fromH}%`,
                       backgroundColor: isActive ? BAR_FROM : "#4a4a4a",
-                      opacity:         isActive ? 1 : 0.6,
+                      opacity: isActive ? 1 : 0.6,
                     }}
                   />
                   {/* To bar */}
                   <div
                     className="flex-1 rounded-t-sm transition-all duration-700"
                     style={{
-                      height:          `${toH}%`,
+                      height: `${toH}%`,
                       backgroundColor: isActive ? ACTIVE : BAR_TO,
-                      opacity:         isActive ? 1 : 0.7,
+                      opacity: isActive ? 1 : 0.7,
                     }}
                   />
                 </div>
@@ -256,7 +303,7 @@ function ExpenseBarChart({ expenses, activeIndex, setActiveIndex }) {
       {/* X-axis icons */}
       <div className="flex items-center justify-around mt-3 pl-10">
         {expenses.map((exp, i) => {
-          const Icon     = ICON_MAP[exp.name] ?? Home;
+          const Icon = ICON_MAP[exp.name] ?? Home;
           const isActive = activeIndex === i;
           return (
             <button
@@ -278,11 +325,17 @@ function ExpenseBarChart({ expenses, activeIndex, setActiveIndex }) {
       {/* Legend */}
       <div className="flex items-center justify-center gap-5 mt-3">
         <div className="flex items-center gap-1.5">
-          <div className="w-2.5 h-2.5 rounded-sm" style={{ backgroundColor: "#4a4a4a" }} />
+          <div
+            className="w-2.5 h-2.5 rounded-sm"
+            style={{ backgroundColor: "#4a4a4a" }}
+          />
           <span className="text-xs text-gray-400">Current</span>
         </div>
         <div className="flex items-center gap-1.5">
-          <div className="w-2.5 h-2.5 rounded-sm" style={{ backgroundColor: ACTIVE }} />
+          <div
+            className="w-2.5 h-2.5 rounded-sm"
+            style={{ backgroundColor: ACTIVE }}
+          />
           <span className="text-xs text-gray-400">Target</span>
         </div>
       </div>
@@ -292,11 +345,13 @@ function ExpenseBarChart({ expenses, activeIndex, setActiveIndex }) {
 
 // ─── Main ─────────────────────────────────────────────────────────────────────
 function CustomDetailInner() {
-  const router   = useRouter();
-  const params   = useSearchParams();
-  const fromCity = params.get("fromCity") || "San Francisco, CA";
-  const toCity   = params.get("toCity")   || "Dallas, TX";
-  const income   = Number(params.get("income") || 82000);
+  const router = useRouter();
+  const params = useSearchParams();
+
+  // ✅ Fixed param names
+  const fromState = params.get("fromState") || "California";
+  const toState = params.get("toState") || "Texas";
+  const income = Number(params.get("income") || 82000);
 
   let expenses = FALLBACK_EXPENSES;
   try {
@@ -307,12 +362,13 @@ function CustomDetailInner() {
   const [activeBar, setActiveBar] = useState(0);
 
   const totalFrom = expenses.reduce((s, e) => s + e.from, 0);
-  const totalTo   = expenses.reduce((s, e) => s + e.to,   0);
-  const diff      = totalTo - totalFrom;
-  const pct       = Math.abs(Math.round((diff / totalFrom) * 100));
-  const cheaper   = diff < 0;
+  const totalTo = expenses.reduce((s, e) => s + e.to, 0);
+  const diff = totalTo - totalFrom;
+  const pct = Math.abs(Math.round((diff / totalFrom) * 100));
+  const cheaper = diff < 0;
 
-  const editUrl = `/living/custom-calculator?fromCity=${encodeURIComponent(fromCity)}&toCity=${encodeURIComponent(toCity)}&income=${income}&expenses=${encodeURIComponent(JSON.stringify(expenses))}`;
+  // ✅ Fixed editUrl params
+  const editUrl = `/living/custom-calculator?fromState=${encodeURIComponent(fromState)}&toState=${encodeURIComponent(toState)}&income=${income}`;
 
   const handleSave = () => {
     alert("Saved! (wire to your save API here)");
@@ -320,7 +376,7 @@ function CustomDetailInner() {
 
   const handleExport = () => {
     const lines = [
-      `Cost of Living Comparison: ${fromCity} → ${toCity}`,
+      `Cost of Living Comparison: ${fromState} → ${toState}`,
       `Income: ${fmt(income)}`,
       "",
       "Category,Current,Target",
@@ -330,9 +386,9 @@ function CustomDetailInner() {
       `Difference,${diff > 0 ? "+" : ""}${diff} (${cheaper ? "-" : "+"}${pct}%)`,
     ];
     const blob = new Blob([lines.join("\n")], { type: "text/csv" });
-    const url  = URL.createObjectURL(blob);
-    const a    = document.createElement("a");
-    a.href     = url;
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
     a.download = "cost-of-living.csv";
     a.click();
     URL.revokeObjectURL(url);
@@ -343,9 +399,11 @@ function CustomDetailInner() {
   };
 
   return (
-    <div className="min-h-screen text-white" style={{ backgroundColor: "#1a1a1a" }}>
+    <div
+      className="min-h-screen text-white"
+      style={{ backgroundColor: "#1a1a1a" }}
+    >
       <div className="px-5 py-8 lg:px-8 lg:py-12">
-
         {/* Back */}
         <button
           onClick={() => router.back()}
@@ -357,16 +415,15 @@ function CustomDetailInner() {
 
         {/* Heading */}
         <h1 className="text-3xl lg:text-4xl font-extrabold mb-1 leading-tight">
-          Your custom{" "}
-          <span className="text-[#c7a481]">living expense</span>{" "}
+          Your custom <span className="text-[#c7a481]">living expense</span>{" "}
           calculator
         </h1>
 
-        {/* City card */}
+        {/* State card */}
         <div className="mt-6">
           <CityCard
-            fromCity={fromCity}
-            toCity={toCity}
+            fromState={fromState}
+            toState={toState}
             income={income}
             onEdit={() => router.push(editUrl)}
           />
@@ -375,7 +432,9 @@ function CustomDetailInner() {
         {/* Total summary pill */}
         <div className="mt-6 flex items-center gap-3">
           <div>
-            <p className="text-gray-400 text-xs mb-0.5">Total monthly in {toCity}</p>
+            <p className="text-gray-400 text-xs mb-0.5">
+              Total monthly in {toState}
+            </p>
             <p className="text-2xl font-extrabold" style={{ color: "#c7a481" }}>
               {fmt(totalTo)}
             </p>
@@ -394,8 +453,10 @@ function CustomDetailInner() {
         </div>
 
         {/* Analysis section */}
-        <h3 className="text-base font-bold text-white mt-8 mb-4 tracking-wide uppercase text-xs"
-            style={{ letterSpacing: "0.08em", color: "#888" }}>
+        <h3
+          className="text-base font-bold text-white mt-8 mb-4 tracking-wide uppercase text-xs"
+          style={{ letterSpacing: "0.08em", color: "#888" }}
+        >
           Analysis
         </h3>
 
@@ -405,8 +466,8 @@ function CustomDetailInner() {
             <CategoryRow
               key={exp.name}
               expense={exp}
-              fromCity={fromCity}
-              toCity={toCity}
+              fromState={fromState}
+              toState={toState}
               isFirst={i === 0}
             />
           ))}
