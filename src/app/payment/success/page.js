@@ -1,9 +1,6 @@
 // app/payment/success/page.jsx
 'use client';
 
-// ✅ FIX 1: Suspense MUST be imported at the top before it's used.
-// Having it at the bottom caused the component to crash silently,
-// which triggered middleware to redirect back to /payment.
 import { Suspense, useEffect, useState, useRef } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useDispatch, useSelector } from 'react-redux';
@@ -20,7 +17,6 @@ function PaymentSuccessInner() {
   const { user } = useAuth();
   const userPlan = useSelector((state) => state.userProfile?.plan);
   const [status, setStatus] = useState('loading');
-  // ✅ FIX 2: Guard against the useEffect running twice in React StrictMode
   const hasRun = useRef(false);
 
   useEffect(() => {
@@ -35,32 +31,41 @@ function PaymentSuccessInner() {
 
     const verifyPayment = async () => {
       try {
-        // ✅ FIX 3: Retry up to 8 times (every 2s = up to 16s total) instead
-        // of a single 2s delay. Webhooks are async and can take varying time.
-        // We poll Firestore until plan === 'pro' is confirmed.
+        // ✅ FIX 3: Longer initial delay for webhook processing
+        // Stripe webhooks can take 3-5 seconds to fire and update Firestore
+        const INITIAL_WEBHOOK_DELAY = 5000; // 5 seconds
         const MAX_ATTEMPTS = 8;
-        const RETRY_DELAY  = 2000;
+        const RETRY_DELAY = 2000;
         let verified = false;
         let result = null;
 
+        console.log('[PaymentSuccess] Waiting for webhook to process...');
+        await new Promise((resolve) => setTimeout(resolve, INITIAL_WEBHOOK_DELAY));
+
         for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
-          // Wait before each check (first attempt still waits 2s for webhook)
-          await new Promise((resolve) => setTimeout(resolve, RETRY_DELAY));
+          console.log(`[PaymentSuccess] Polling attempt ${attempt}/${MAX_ATTEMPTS}...`);
 
           result = await dispatch(
             fetchSubscriptionStatus(user.uid)
           ).unwrap();
 
-          console.log(`[v0] Attempt ${attempt}/${MAX_ATTEMPTS}: Current plan = '${result?.plan}'`);
+          console.log(`[PaymentSuccess] Attempt ${attempt}/${MAX_ATTEMPTS}: Current plan = '${result?.plan}'`);
 
-          if (result?.plan === 'pro') {
+          // ✅ Check for both 'pro' and 'enterprise'
+          if (result?.plan === 'pro' || result?.plan === 'enterprise') {
             verified = true;
+            console.log('[PaymentSuccess] ✅ Subscription verified!', result);
             break;
+          }
+
+          // Only wait between retries, not after the final attempt
+          if (attempt < MAX_ATTEMPTS) {
+            await new Promise((resolve) => setTimeout(resolve, RETRY_DELAY));
           }
         }
 
         if (!verified) {
-          throw new Error('Subscription not confirmed after maximum retries.');
+          throw new Error(`Subscription not confirmed after ${MAX_ATTEMPTS} retries. Last result: ${JSON.stringify(result)}`);
         }
 
         // ✅ Update Redux state to reflect the new pro plan
@@ -77,14 +82,14 @@ function PaymentSuccessInner() {
           window.location.href = '/';
         }, 2500);
       } catch (error) {
-        console.error('[v0] Payment verification error:', error);
+        console.error('[PaymentSuccess] Payment verification error:', error);
         setStatus('error');
       }
     };
 
     verifyPayment();
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [user?.uid]); // Only re-run if the user changes, not on every render
+  }, [user?.uid]);
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-[#1a1a1a] px-4">
@@ -144,7 +149,7 @@ function PaymentSuccessInner() {
             </h1>
             <p className="text-gray-400 mb-6">
               We couldn&apos;t verify your payment. Please contact support if
-              you were charged.
+              you were charged. Your payment may still be processing.
             </p>
             <button
               onClick={() => router.push('/payment')}
@@ -160,8 +165,6 @@ function PaymentSuccessInner() {
   );
 }
 
-// ✅ Suspense wraps the inner component because useSearchParams()
-// requires it in Next.js App Router.
 export default function PaymentSuccess() {
   return (
     <Suspense fallback={<div className="min-h-screen bg-[#1a1a1a]" />}>
