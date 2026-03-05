@@ -131,6 +131,9 @@ export default function SignupPage() {
             height={80}
             className="mx-auto mb-4"
           />
+          <h1 className="text-xl font-bold text-[#c7a481] mb-10">
+              My Wealth Translator
+            </h1>
           <h1 className="text-xl font-semibold text-white mb-1">
             Don&apos;t have an account
           </h1>

@@ -47,6 +47,9 @@ export default function ForgotPassPage() {
             height={80}
             className="mx-auto mb-4"
           />
+          <h1 className="text-xl font-bold text-[#c7a481] mb-10">
+              My Wealth Translator
+            </h1>
           <h1 className="text-lg font-semibold text-[#c7a481] mb-1">
             Forgot your password?
           </h1>

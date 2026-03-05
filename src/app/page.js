@@ -115,17 +115,6 @@ export default function Home() {
           })}
         </div>
 
-        {/* View Portfolio Link */}
-        <div className="mt-8 max-w-2xl">
-          <a
-            href="/portfolio"
-            className="inline-flex items-center gap-2 font-medium hover:opacity-80"
-            style={{ color: "#c7a481" }}
-          >
-            <Wallet className="w-5 h-5" strokeWidth={2} />
-            <span>View Portfolio</span>
-          </a>
-        </div>
       </div>
     </div>
   );

@@ -1,4 +1,5 @@
 /* eslint-disable @next/next/no-img-element */
+// app/retirement/page.jsx
 
 "use client";
 
@@ -18,44 +19,97 @@ import {
   SlidersHorizontal,
 } from "lucide-react";
 import { useState, useEffect } from "react";
-import { retirementSchema } from "../validations/schema";
+import * as yup from "yup";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Suspense } from "react";
 
+// ─── Schema (advanced fields are required) ────────────────────────────────────
+const retirementSchema = yup.object({
+  currentAge: yup
+    .number()
+    .typeError("Enter a number")
+    .min(1)
+    .max(100)
+    .required("Required"),
+  income: yup.number().typeError("Enter a number").min(0).required("Required"),
+  savings: yup.number().typeError("Enter a number").min(0).required("Required"),
+  contribution: yup
+    .number()
+    .typeError("Enter a number")
+    .min(0)
+    .required("Required"),
+  budget: yup.number().typeError("Enter a number").min(0).required("Required"),
+  retirementAge: yup
+    .number()
+    .typeError("Enter a number")
+    .min(1)
+    .max(100)
+    .required("Required"),
+  incomeIncrease: yup
+    .number()
+    .typeError("Enter a number")
+    .min(0)
+    .required("Required"),
+  inflationRate: yup
+    .number()
+    .typeError("Enter a number")
+    .min(0)
+    .required("Required"),
+});
+
 // ─── Inner form ───────────────────────────────────────────────────────────────
 function RetirementFormInner() {
-  const [showAdvanced, setShowAdvanced] = useState(false);
+  const [showAdvanced, setShowAdvanced] = useState(true);
   const router = useRouter();
   const params = useSearchParams();
 
   const {
     register,
     handleSubmit,
+    reset,
     formState: { errors },
   } = useForm({
     resolver: yupResolver(retirementSchema),
+    // Start with empty strings — reset() below will populate them once
+    // params are confirmed (avoids react-hook-form defaultValues timing issue)
     defaultValues: {
-      currentAge: params.get("currentAge") || "",
-      income: params.get("income") || "",
-      savings: params.get("savings") || "",
-      contribution: params.get("contribution") || "",
-      budget: params.get("budget") || "",
-      retirementAge: params.get("retirementAge") || "",
-      incomeIncrease: params.get("incomeIncrease") || "",
-      inflationRate: params.get("inflationRate") || "",
+      currentAge: "",
+      income: "",
+      savings: "",
+      contribution: "",
+      budget: "",
+      retirementAge: "",
+      incomeIncrease: "",
+      inflationRate: "",
     },
   });
 
-  // Auto-open advanced if advanced params exist
+  // ── Pre-fill from URL params (set by Profile page when loading a saved report)
   useEffect(() => {
-    if (
-      params.get("retirementAge") ||
-      params.get("incomeIncrease") ||
-      params.get("inflationRate")
-    ) {
-      setShowAdvanced(true);
-    }
-  }, [params]);
+    const currentAge = params.get("currentAge");
+    const income = params.get("income");
+    const savings = params.get("savings");
+    const contribution = params.get("contribution");
+    const budget = params.get("budget");
+    const retirementAge = params.get("retirementAge");
+    const incomeIncrease = params.get("incomeIncrease");
+    const inflationRate = params.get("inflationRate");
+
+    // Only reset if at least one core field is present
+    if (!currentAge && !income && !savings) return;
+
+    reset({
+      currentAge: currentAge || "",
+      income: income || "",
+      savings: savings || "",
+      contribution: contribution || "",
+      budget: budget || "",
+      retirementAge: retirementAge || "",
+      incomeIncrease: incomeIncrease || "",
+      inflationRate: inflationRate || "",
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []); // run once on mount — params are stable by the time JS executes
 
   const onSubmit = (data) => {
     const urlParams = new URLSearchParams({
@@ -68,7 +122,6 @@ function RetirementFormInner() {
       incomeIncrease: data.incomeIncrease || "",
       inflationRate: data.inflationRate || "",
     });
-
     router.push(`/retirement/detail?${urlParams.toString()}`);
   };
 
@@ -81,8 +134,8 @@ function RetirementFormInner() {
 
       <div className="mt-10">
         <h1 className="md:text-4xl text-3xl font-bold mb-2">
-          Translate your
-          <span className="text-[#c7a481]"> Retirement options</span>
+          Translate your{" "}
+          <span className="text-[#c7a481]">Retirement options</span>
         </h1>
 
         <p className="md:text-lg text-sm font-normal mb-5">
@@ -103,7 +156,6 @@ function RetirementFormInner() {
                 placeholder="Enter age"
                 icon={<Calendar />}
               />
-
               <FormInput
                 label="What is your annual pre-tax income?"
                 title="Income"
@@ -114,7 +166,6 @@ function RetirementFormInner() {
                 placeholder="Enter income"
                 icon={<HandCoinsIcon />}
               />
-
               <FormInput
                 label="What are your current retirement savings?"
                 title="Savings"
@@ -125,7 +176,6 @@ function RetirementFormInner() {
                 placeholder="Enter savings"
                 icon={<Wallet />}
               />
-
               <FormInput
                 label="How much is your monthly contribution?"
                 title="Contribution"
@@ -136,7 +186,6 @@ function RetirementFormInner() {
                 placeholder="Enter monthly contribution"
                 icon={<TrendingUp />}
               />
-
               <FormInput
                 label="What is your expected annual retirement budget?"
                 title="Annual Budget"
@@ -186,7 +235,6 @@ function RetirementFormInner() {
                     placeholder="Enter retirement age"
                     icon={<Calendar />}
                   />
-
                   <FormInput
                     label="What is your estimated annual income increase? (%)"
                     title="Income Increase"
@@ -197,7 +245,6 @@ function RetirementFormInner() {
                     placeholder="Enter income growth"
                     icon={<TrendingUp />}
                   />
-
                   <FormInput
                     label="What is your estimated rate of inflation? (%)"
                     title="Inflation Rate"
@@ -222,7 +269,6 @@ function RetirementFormInner() {
   );
 }
 
-// ─── Page export wrapped in Suspense ──────────────────────────────────────────
 export default function Retirement() {
   return (
     <Suspense fallback={<div className="min-h-screen bg-[#1a1a1a]" />}>

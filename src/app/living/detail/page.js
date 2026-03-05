@@ -407,13 +407,8 @@ export default function LivingDetail() {
 
   return (
     <div className="min-h-screen text-white bg-[#1a1a1a]">
-      <div className="w-full px-5 py-8 lg:px-8 lg:py-12">
-        <div className="flex justify-between items-center mb-6">
-          <GoodMorning />
-          <span className="text-[10px] text-gray-500 uppercase tracking-widest">
-            Verified: Feb 2026
-          </span>
-        </div>
+      <div className="w-full px-6 py-8 lg:px-12 lg:py-12">
+        <GoodMorning />
         <div className="my-10">
           <h1 className="text-4xl font-bold mb-4">
             Translate your{" "}

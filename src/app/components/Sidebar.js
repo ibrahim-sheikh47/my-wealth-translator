@@ -1,47 +1,64 @@
-'use client';
+"use client";
 
-import Link from 'next/link';
-import { usePathname } from 'next/navigation';
-import { motion } from 'framer-motion';
-import { Home, DollarSign, PiggyBank, TrendingUp, Wallet, LogOut } from 'lucide-react';
-import Btn from './Btn';
-import { useAuth } from '../hooks/useAuth';
+import Link from "next/link";
+import { usePathname } from "next/navigation";
+import { motion } from "framer-motion";
+import {
+  Home,
+  DollarSign,
+  PiggyBank,
+  Wallet,
+  Calculator,
+} from "lucide-react";
+import Btn from "./Btn";
+import { useAuth } from "../hooks/useAuth";
+import Image from "next/image";
 
 const navItems = [
-  { name: 'Home', href: '/', icon: Home },
-  { name: 'Living', href: '/living', icon: DollarSign },
-  { name: 'Retirement', href: '/retirement', icon: PiggyBank },
-  { name: 'Stocks', href: '/stocks', icon: TrendingUp },
-  { name: 'Income', href: '/income', icon: Wallet },
+  { name: "Home", href: "/", icon: Home },
+  { name: "Living", href: "/living", icon: DollarSign },
+  { name: "Retirement", href: "/retirement", icon: PiggyBank },
+  { name: "Amortization", href: "/amortization-calculator", icon: Calculator },
+  { name: "Income", href: "/income", icon: Wallet },
 ];
 
 // Ultra-fast motion config
 const fast = {
   duration: 0.14,
-  ease: 'easeOut',
+  ease: "easeOut",
 };
 
 export default function Sidebar() {
-
   const { logout } = useAuth();
   const pathname = usePathname();
+
+  // Function to determine if nav item is active
+  const checkActive = (href) => {
+    return href === "/" ? pathname === "/" : pathname.startsWith(href);
+  };
 
   return (
     <>
       {/* ================= Desktop Sidebar ================= */}
       <aside className="hidden lg:flex lg:flex-col lg:fixed lg:inset-y-0 lg:w-64 lg:border-r lg:border-[#2a2a2a] bg-[#1a1a1a]">
         <div className="flex flex-col flex-1 overflow-y-auto">
-
           {/* Logo */}
-          <div className="flex items-center justify-center h-20 border-b border-[#2a2a2a]">
-            <h1 className="text-2xl font-bold text-[#c7a481]">Wealth Translator</h1>
+          <Image
+            src="/logo.png"
+            alt="Wealth Logo"
+            width={80}
+            height={80}
+            className="mx-auto mt-5"
+          />
+          <div className="flex items-center justify-center h-20 border-b border-[#2a2a2a] -mt-3">
+            <h1 className="text-xl font-bold text-[#c7a481]">My Wealth Translator</h1>
           </div>
 
           {/* Navigation */}
           <nav className="flex-1 px-4 py-8 space-y-2">
             {navItems.map((item) => {
               const Icon = item.icon;
-              const isActive = pathname === item.href;
+              const isActive = checkActive(item.href);
 
               return (
                 <Link key={item.name} href={item.href} className="block">
@@ -49,12 +66,12 @@ export default function Sidebar() {
                     whileHover={{ x: 4 }}
                     whileTap={{ scale: 0.98 }}
                     transition={fast}
-                    className={`
-                      relative flex items-center gap-4 px-4 py-3 rounded-xl
-                      ${isActive ? 'text-zinc-100' : 'text-zinc-400 hover:text-zinc-100'}
-                    `}
+                    className={`relative flex items-center gap-4 px-4 py-3 rounded-xl ${
+                      isActive
+                        ? "text-zinc-100"
+                        : "text-zinc-400 hover:text-zinc-100"
+                    }`}
                   >
-                    {/* Active indicator (layout-only = FAST) */}
                     {isActive && (
                       <motion.div
                         layoutId="sidebar-active"
@@ -63,12 +80,11 @@ export default function Sidebar() {
                       />
                     )}
 
-                    {/* Content */}
                     <div className="relative z-10 flex items-center gap-4">
                       <Icon
                         className="w-5 h-5"
                         strokeWidth={2}
-                        style={{ color: isActive ? '#c7a481' : undefined }}
+                        style={{ color: isActive ? "#c7a481" : undefined }}
                       />
                       <span className="font-medium">{item.name}</span>
                     </div>
@@ -81,7 +97,7 @@ export default function Sidebar() {
           {/* Bottom CTA */}
           <div className="p-4 border-t border-[#2a2a2a]">
             <motion.div whileTap={{ scale: 0.96 }} transition={fast}>
-              <Btn title={"Logout"} onClick={logout}/>
+              <Btn title={"Logout"} onClick={logout} />
             </motion.div>
           </div>
         </div>
@@ -92,7 +108,7 @@ export default function Sidebar() {
         <div className="flex items-center justify-around h-20 px-2">
           {navItems.map((item) => {
             const Icon = item.icon;
-            const isActive = pathname === item.href;
+            const isActive = checkActive(item.href);
 
             return (
               <Link key={item.name} href={item.href} className="flex-1">
@@ -113,13 +129,13 @@ export default function Sidebar() {
                     <Icon
                       className="relative z-10 w-6 h-6"
                       strokeWidth={2}
-                      style={{ color: isActive ? '#c7a481' : '#71717a' }}
+                      style={{ color: isActive ? "#c7a481" : "#71717a" }}
                     />
                   </div>
 
                   <span
                     className="mt-1 text-xs font-medium"
-                    style={{ color: isActive ? '#c7a481' : '#71717a' }}
+                    style={{ color: isActive ? "#c7a481" : "#71717a" }}
                   >
                     {item.name}
                   </span>

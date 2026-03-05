@@ -5,6 +5,9 @@
 
 import { Suspense, useState, useEffect, useRef } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
+import { useSelector } from "react-redux";
+import { collection, addDoc, serverTimestamp } from "firebase/firestore";
+import { db } from "@/app/lib/firebase";
 import {
   ArrowLeft,
   Pencil,
@@ -15,10 +18,8 @@ import {
   HeartPulse,
   ChevronDown,
   ChevronUp,
-  Download,
-  Bookmark,
-  RotateCcw,
 } from "lucide-react";
+import GoodMorning from "@/app/components/GoodMorning";
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 const fmt = (n) =>
@@ -88,31 +89,10 @@ function CategoryRow({ expense, fromState, toState, isFirst }) {
   const pct = Math.abs(Math.round((diff / expense.from) * 100));
   const lower = diff <= 0;
 
-  // ✅ Detail rows built purely from real expense.from / expense.to
-  const DETAIL_ROWS = {
-    housing: [
-      { label: "Monthly Budget", from: expense.from, to: expense.to },
-      { label: "Annual Cost", from: expense.from * 12, to: expense.to * 12 },
-    ],
-    transportation: [
-      { label: "Monthly Budget", from: expense.from, to: expense.to },
-      { label: "Annual Cost", from: expense.from * 12, to: expense.to * 12 },
-    ],
-    food: [
-      { label: "Monthly Budget", from: expense.from, to: expense.to },
-      { label: "Annual Cost", from: expense.from * 12, to: expense.to * 12 },
-    ],
-    utilities: [
-      { label: "Monthly Budget", from: expense.from, to: expense.to },
-      { label: "Annual Cost", from: expense.from * 12, to: expense.to * 12 },
-    ],
-    healthcare: [
-      { label: "Monthly Budget", from: expense.from, to: expense.to },
-      { label: "Annual Cost", from: expense.from * 12, to: expense.to * 12 },
-    ],
-  };
-
-  const rows = (DETAIL_ROWS[expense.name] ?? []).filter((r) => !r.isNote);
+  const rows = [
+    { label: "Monthly Budget", from: expense.from, to: expense.to },
+    { label: "Annual Cost", from: expense.from * 12, to: expense.to * 12 },
+  ];
 
   return (
     <div
@@ -199,7 +179,6 @@ function CategoryRow({ expense, fromState, toState, isFirst }) {
 function ExpenseBarChart({ expenses, activeIndex, setActiveIndex }) {
   const allValues = expenses.flatMap((e) => [e.from, e.to]);
   const maxVal = Math.max(...allValues);
-  // ✅ Round up to nearest clean number relative to scale — works for $100 or $10,000
   const magnitude = Math.pow(10, Math.floor(Math.log10(maxVal)));
   const chartMax = Math.ceil((maxVal * 1.2) / magnitude) * magnitude;
 
@@ -261,7 +240,6 @@ function ExpenseBarChart({ expenses, activeIndex, setActiveIndex }) {
                 className="flex flex-col items-center gap-1 flex-1 max-w-[52px] relative"
                 style={{ height: "100%" }}
               >
-                {/* Tooltip on active */}
                 {isActive && (
                   <div
                     className="absolute -top-8 left-1/2 -translate-x-1/2 text-xs font-bold px-2 py-1 rounded-lg whitespace-nowrap z-10"
@@ -275,7 +253,6 @@ function ExpenseBarChart({ expenses, activeIndex, setActiveIndex }) {
                   className="flex items-end gap-0.5 w-full"
                   style={{ height: "100%" }}
                 >
-                  {/* From bar */}
                   <div
                     className="flex-1 rounded-t-sm transition-all duration-700"
                     style={{
@@ -284,7 +261,6 @@ function ExpenseBarChart({ expenses, activeIndex, setActiveIndex }) {
                       opacity: isActive ? 1 : 0.6,
                     }}
                   />
-                  {/* To bar */}
                   <div
                     className="flex-1 rounded-t-sm transition-all duration-700"
                     style={{
@@ -348,7 +324,9 @@ function CustomDetailInner() {
   const router = useRouter();
   const params = useSearchParams();
 
-  // ✅ Fixed param names
+  // Get logged-in user from Redux
+  const user = useSelector((state) => state.auth.user);
+
   const fromState = params.get("fromState") || "California";
   const toState = params.get("toState") || "Texas";
   const income = Number(params.get("income") || 82000);
@@ -360,6 +338,8 @@ function CustomDetailInner() {
   } catch {}
 
   const [activeBar, setActiveBar] = useState(0);
+  // "idle" | "saving" | "saved" | "error"
+  const [saveStatus, setSaveStatus] = useState("idle");
 
   const totalFrom = expenses.reduce((s, e) => s + e.from, 0);
   const totalTo = expenses.reduce((s, e) => s + e.to, 0);
@@ -367,13 +347,36 @@ function CustomDetailInner() {
   const pct = Math.abs(Math.round((diff / totalFrom) * 100));
   const cheaper = diff < 0;
 
-  // ✅ Fixed editUrl params
   const editUrl = `/living/custom-calculator?fromState=${encodeURIComponent(fromState)}&toState=${encodeURIComponent(toState)}&income=${income}`;
 
-  const handleSave = () => {
-    alert("Saved! (wire to your save API here)");
+  // ── Save to Firestore ───────────────────────────────────────────────────────
+  const handleSave = async () => {
+    if (!user?.uid) {
+      alert("Please log in to save reports.");
+      return;
+    }
+    setSaveStatus("saving");
+    try {
+      // Saves under: users/{uid}/col_reports/{auto-id}
+      await addDoc(collection(db, "users", user.uid, "col_reports"), {
+        fromState,
+        toState,
+        income,
+        expenses, // full array: [{ name, label, from, to }]
+        totalFrom,
+        totalTo,
+        savedAt: serverTimestamp(),
+      });
+      setSaveStatus("saved");
+      setTimeout(() => setSaveStatus("idle"), 2500);
+    } catch (err) {
+      console.error("[handleSave] Firestore error:", err);
+      setSaveStatus("error");
+      setTimeout(() => setSaveStatus("idle"), 2500);
+    }
   };
 
+  // ── Export CSV ──────────────────────────────────────────────────────────────
   const handleExport = () => {
     const lines = [
       `Cost of Living Comparison: ${fromState} → ${toState}`,
@@ -398,6 +401,16 @@ function CustomDetailInner() {
     router.push("/living");
   };
 
+  // ── Save button label helper ────────────────────────────────────────────────
+  const saveLabel =
+    saveStatus === "saving"
+      ? "Saving…"
+      : saveStatus === "saved"
+        ? "✓ Saved!"
+        : saveStatus === "error"
+          ? "Error — Try Again"
+          : "Save";
+
   return (
     <div
       className="min-h-screen text-white"
@@ -413,6 +426,7 @@ function CustomDetailInner() {
           Back
         </button>
 
+        <GoodMorning />
         {/* Heading */}
         <h1 className="text-3xl lg:text-4xl font-extrabold mb-1 leading-tight">
           Your custom <span className="text-[#c7a481]">living expense</span>{" "}
@@ -460,7 +474,7 @@ function CustomDetailInner() {
           Analysis
         </h3>
 
-        {/* Accordion rows — 1-col mobile, 2-col desktop */}
+        {/* Accordion rows */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
           {expenses.map((exp, i) => (
             <CategoryRow
@@ -485,10 +499,11 @@ function CustomDetailInner() {
           {/* Save */}
           <button
             onClick={handleSave}
-            className="w-full py-4 rounded-2xl font-bold text-white text-base transition-all hover:opacity-90 active:scale-[0.98]"
+            disabled={saveStatus === "saving"}
+            className="w-full py-4 rounded-2xl font-bold text-white text-base transition-all hover:opacity-90 active:scale-[0.98] disabled:opacity-60"
             style={{ backgroundColor: "#8b1c1c" }}
           >
-            Save
+            {saveLabel}
           </button>
 
           {/* Export */}

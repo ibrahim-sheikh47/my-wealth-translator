@@ -1,5 +1,7 @@
 // app/living/custom-calculator/page.jsx
 // Route: /living/custom-calculator?fromState=...&toState=...&income=...
+// Also accepts: &housing=...&transportation=...&food=...&utilities=...&healthcare=...
+// (these are populated when coming from a saved report on the Profile page)
 
 "use client";
 
@@ -17,11 +19,10 @@ import {
   Zap,
   HeartPulse,
 } from "lucide-react";
-
-// --- Firebase Imports ---
 import { doc, getDoc } from "firebase/firestore";
 import { db } from "@/app/lib/firebase";
 import FormInput from "@/app/components/FormInput";
+import GoodMorning from "@/app/components/GoodMorning";
 
 // ─── Validation ───────────────────────────────────────────────────────────────
 const schema = yup.object({
@@ -120,15 +121,38 @@ function CityCard({ fromState, toState, income, onEdit }) {
   );
 }
 
-// ─── Inner (needs useSearchParams) ───────────────────────────────────────────
+// ─── Inner ────────────────────────────────────────────────────────────────────
 function CustomCalculatorInner() {
   const router = useRouter();
   const params = useSearchParams();
+
   const fromState = params.get("fromState") || "California";
   const toState = params.get("toState") || "Texas";
   const income = Number(params.get("income") || 82000);
 
-  // ✅ Fetch actual expense data from Firestore (Option B)
+  // ── Read pre-filled expense values from URL (set by Profile page) ──────────
+  // If the param is present and a valid number, use it. Otherwise fall back to
+  // an empty string so the field renders blank (not "0") for a fresh session.
+  const prefilled = {
+    housing: params.get("housing") ? Number(params.get("housing")) : undefined,
+    transportation: params.get("transportation")
+      ? Number(params.get("transportation"))
+      : undefined,
+    food: params.get("food") ? Number(params.get("food")) : undefined,
+    utilities: params.get("utilities")
+      ? Number(params.get("utilities"))
+      : undefined,
+    healthcare: params.get("healthcare")
+      ? Number(params.get("healthcare"))
+      : undefined,
+  };
+
+  // Flag: are we editing a saved report? Used to show a subtle "editing saved report" badge.
+  const isEditingSaved = CATEGORIES.some(
+    (c) => prefilled[c.name] !== undefined,
+  );
+
+  // ── Firestore cost-of-living index data ────────────────────────────────────
   const [firestoreData, setFirestoreData] = useState(null);
   const [loading, setLoading] = useState(true);
 
@@ -140,7 +164,6 @@ function CustomCalculatorInner() {
         if (fromSnap.exists() && toSnap.exists()) {
           const f = fromSnap.data();
           const t = toSnap.data();
-          // Store actual index values, not ratios
           setFirestoreData({
             from: {
               housingIdx: f.housing,
@@ -159,7 +182,7 @@ function CustomCalculatorInner() {
           });
         }
       } catch (err) {
-        console.error("[v0] Error fetching expense data:", err);
+        console.error("[CustomCalculator] Firestore fetch error:", err);
       } finally {
         setLoading(false);
       }
@@ -167,21 +190,43 @@ function CustomCalculatorInner() {
     fetchExpenseData();
   }, [fromState, toState]);
 
+  // ── useForm ────────────────────────────────────────────────────────────────
+  // NOTE: defaultValues won't work here because useSearchParams resolves
+  // asynchronously in Next.js — the form mounts before params are available.
+  // Solution: initialise with empty defaults, then call reset() once params land.
   const {
     register,
     handleSubmit,
+    reset,
     formState: { errors },
   } = useForm({
     resolver: yupResolver(schema),
-    defaultValues: Object.fromEntries(
-      CATEGORIES.map((c) => [c.name, c.default]),
-    ),
+    defaultValues: {
+      housing: "",
+      transportation: "",
+      food: "",
+      utilities: "",
+      healthcare: "",
+    },
   });
 
+  // ── Populate form fields once URL params (and thus prefilled) are ready ────
+  useEffect(() => {
+    if (!isEditingSaved) return; // nothing to pre-fill for a fresh session
+    reset({
+      housing: prefilled.housing ?? "",
+      transportation: prefilled.transportation ?? "",
+      food: prefilled.food ?? "",
+      utilities: prefilled.utilities ?? "",
+      healthcare: prefilled.healthcare ?? "",
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []); // run once on mount — params are stable strings by the time JS executes
+
+  // ── Submit ─────────────────────────────────────────────────────────────────
   const onSubmit = (data) => {
     if (!firestoreData) return;
 
-    // Calculate expense translations using actual index ratios from Firestore
     const indexMap = {
       housing: {
         from: firestoreData.from.housingIdx,
@@ -204,17 +249,12 @@ function CustomCalculatorInner() {
 
     const expenses = CATEGORIES.map((cat) => {
       const userInput = Number(data[cat.name]);
-      const indices = indexMap[cat.name];
-
-      // Apply ratio: user_input * (toIndex / fromIndex)
-      const ratio = indices.to / indices.from;
-      const translatedExpense = Math.round(userInput * ratio);
-
+      const ratio = indexMap[cat.name].to / indexMap[cat.name].from;
       return {
         name: cat.name,
         label: cat.label,
         from: userInput,
-        to: translatedExpense,
+        to: Math.round(userInput * ratio),
       };
     });
 
@@ -251,12 +291,26 @@ function CustomCalculatorInner() {
           <ArrowLeft size={16} />
           Back
         </button>
-
+        <GoodMorning />
         {/* Heading */}
         <h1 className="text-3xl lg:text-4xl font-extrabold mb-1 leading-tight">
           Your custom <span className="text-[#c7a481]">living expense</span>{" "}
           calculator
         </h1>
+
+        {/* "Editing saved report" badge — only shown when pre-filled from profile */}
+        {isEditingSaved && (
+          <div
+            className="mt-3 inline-flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-semibold"
+            style={{
+              backgroundColor: "rgba(199,164,129,0.12)",
+              color: "#c7a481",
+              border: "1px solid rgba(199,164,129,0.25)",
+            }}
+          >
+            ✦ Editing your saved report — update values and recalculate
+          </div>
+        )}
 
         {/* State card */}
         <div className="mt-6">
@@ -270,8 +324,9 @@ function CustomCalculatorInner() {
 
         {/* Subtext */}
         <p className="text-gray-400 text-sm mt-5 mb-7 leading-relaxed max-w-md">
-          Enter your monthly expenses in each category for a comparison between
-          your current state and your target state.
+          {isEditingSaved
+            ? "Your previously saved values are pre-filled below. Adjust any amounts and hit Calculate to get fresh results."
+            : "Enter your monthly expenses in each category for a comparison between your current state and your target state."}
         </p>
 
         {/* Form */}
@@ -292,7 +347,6 @@ function CustomCalculatorInner() {
                       {cat.label}
                     </span>
                   </div>
-
                   <FormInput
                     type="number"
                     placeholder={cat.placeholder}

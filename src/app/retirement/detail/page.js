@@ -5,9 +5,17 @@
 
 import { Suspense, useState, useMemo, useEffect } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
+import { useSelector } from "react-redux";
 import { ArrowLeft, Pencil, ChevronDown, ChevronUp } from "lucide-react";
-import { doc, getDoc } from "firebase/firestore";
+import {
+  doc,
+  getDoc,
+  collection,
+  addDoc,
+  serverTimestamp,
+} from "firebase/firestore";
 import { db } from "@/app/lib/firebase";
+import GoodMorning from "@/app/components/GoodMorning";
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 const fmt = (n) =>
@@ -23,41 +31,7 @@ const fmtK = (n) => {
   return `$${Math.round(n)}`;
 };
 
-// ─── Retirement calculation (AUDIT-CORRECTED Feb 2026) ─────────────────────
-/**
- * CRITICAL FIXES from audit:
- * 1. Monthly compounding for better accuracy (not just annual)
- * 2. Age-adjusted withdrawal multiples (25x-30x based on retirement duration)
- * 3. Healthcare cost escalation after age 75
- * 4. Conservative return assumptions (6.5% accum, 3.5% drawdown)
- * 5. Better drawdown phase modeling with realistic cost trajectory
- *
- * FORMULAS:
- *
- * Accumulation phase (monthly compounding):
- *   monthlyRate = (1 + annualRate)^(1/12) - 1
- *   balance = balance * (1 + monthlyRate) + contribution
- *   contribution grows annually by incomeIncrease%
- *
- * Inflation-adjusted budget at retirement:
- *   inflatedBudget = budget * (1 + inflRate)^yearsToRetire
- *
- * Withdrawal multiple (age-adjusted):
- *   if retirementAge = 55 → 30x (40-year retirement)
- *   if retirementAge = 60 → 28x (35-year retirement)
- *   if retirementAge = 65 → 25x (30-year retirement, classic 4% rule)
- *   if retirementAge = 70+ → 22x (shorter retirement)
- *   needed = inflatedBudget * withdrawalMultiple
- *
- * Healthcare escalation (after age 75):
- *   budgetAtAge = inflatedBudget * (1 + healthcareEscalation)^(age - 75)
- *
- * Drawdown phase (realistic budget trajectory):
- *   budget grows with inflation normally
- *   AFTER age 75, grows faster due to healthcare costs
- *   balance = balance * (1 + drawdownReturn) - adjustedBudget
- *   ageRunOut = age when balance hits 0
- */
+// ─── Retirement calculation ───────────────────────────────────────────────────
 function calcRetirement({
   currentAge,
   retirementAge,
@@ -77,31 +51,20 @@ function calcRetirement({
   const inflRate = inflationRate / 100;
   const incRate = incomeIncrease / 100;
   const yearsToRetire = retirementAge - currentAge;
-
   const HEALTHCARE_ESCALATION_AGE = 75;
-  const HEALTHCARE_ESCALATION_RATE = 0.045; // 4.5% additional healthcare inflation
+  const HEALTHCARE_ESCALATION_RATE = 0.045;
 
-  // ── Projected savings at retirement (monthly compounding) ──────────────────
- // ── Projected savings at retirement (monthly compounding) ──────────────────
-let projected = savings;
-let monthlyC = contribution;
-
-for (let y = 0; y < yearsToRetire; y++) {
-  for (let m = 0; m < 12; m++) {
-    // 1. Compound existing balance and add contribution
-    projected = projected * (1 + MONTHLY_RETURN) + monthlyC;
+  let projected = savings;
+  let monthlyC = contribution;
+  for (let y = 0; y < yearsToRetire; y++) {
+    for (let m = 0; m < 12; m++) {
+      projected = projected * (1 + MONTHLY_RETURN) + monthlyC;
+    }
+    if (y < yearsToRetire - 1) monthlyC = monthlyC * (1 + incRate);
   }
-  // 2. Increase contribution ONLY once per year, at the end of the year
-  // (Stop increasing if it's the very last year before retirement)
-  if (y < yearsToRetire - 1) {
-    monthlyC = monthlyC * (1 + incRate);
-  }
-}
 
-  // ── Inflation-adjusted retirement budget & age-adjusted target ─────────────
   const inflatedBudget = budget * Math.pow(1 + inflRate, yearsToRetire);
 
-  // Age-adjusted withdrawal multiple
   let WITHDRAWAL_MULTIPLE = withdrawalMultiple;
   if (retirementAge <= 55) WITHDRAWAL_MULTIPLE = 30;
   else if (retirementAge <= 60) WITHDRAWAL_MULTIPLE = 28;
@@ -111,34 +74,32 @@ for (let y = 0; y < yearsToRetire; y++) {
 
   const needed = inflatedBudget * WITHDRAWAL_MULTIPLE;
 
-  // ── Required monthly contribution to hit `needed` ─────────────────────────
   let requiredMonthlyContrib = 0;
   if (yearsToRetire > 0) {
-    // Using corrected monthly compounding formula
-    const monthlyRate = MONTHLY_RETURN;
     const totalMonths = yearsToRetire * 12;
-    const fvFactor = Math.pow(1 + monthlyRate, totalMonths);
-    const annuityFV = (fvFactor - 1) / monthlyRate;
-    const monthlyPMT = (needed - savings * fvFactor) / annuityFV;
-    requiredMonthlyContrib = Math.max(0, monthlyPMT);
+    const fvFactor = Math.pow(1 + MONTHLY_RETURN, totalMonths);
+    const annuityFV = (fvFactor - 1) / MONTHLY_RETURN;
+    requiredMonthlyContrib = Math.max(
+      0,
+      (needed - savings * fvFactor) / annuityFV,
+    );
   }
 
-  // ── Age savings run out (drawdown with healthcare escalation) ─────────────
   let remaining = projected;
   let ageRunOut = retirementAge;
   let currentBudget = inflatedBudget;
-
   while (remaining > 0 && ageRunOut < 120) {
-    // Apply healthcare cost escalation after age 75
     if (ageRunOut >= HEALTHCARE_ESCALATION_AGE) {
-      const yearsAbove75 = ageRunOut - HEALTHCARE_ESCALATION_AGE;
       currentBudget =
-        inflatedBudget * Math.pow(1 + HEALTHCARE_ESCALATION_RATE, yearsAbove75);
+        inflatedBudget *
+        Math.pow(
+          1 + HEALTHCARE_ESCALATION_RATE,
+          ageRunOut - HEALTHCARE_ESCALATION_AGE,
+        );
     } else {
       currentBudget =
         inflatedBudget * Math.pow(1 + inflRate, ageRunOut - retirementAge);
     }
-
     remaining = remaining * (1 + DRAWDOWN_RETURN) - currentBudget;
     ageRunOut++;
   }
@@ -154,7 +115,7 @@ for (let y = 0; y < yearsToRetire; y++) {
   };
 }
 
-// ─── Chart data (corrected with age-adjusted withdrawal multiple) ────────────
+// ─── Chart data ───────────────────────────────────────────────────────────────
 function buildChartData({
   currentAge,
   retirementAge,
@@ -172,13 +133,10 @@ function buildChartData({
   const inflRate = inflationRate / 100;
   const incRate = incomeIncrease / 100;
   const yearsToRetire = retirementAge - currentAge;
-
   const HEALTHCARE_ESCALATION_AGE = 75;
   const HEALTHCARE_ESCALATION_RATE = 0.045;
-
   const inflatedBudget = budget * Math.pow(1 + inflRate, yearsToRetire);
 
-  // Age-adjusted withdrawal multiple
   let withdrawalMultiple = 25;
   if (retirementAge <= 55) withdrawalMultiple = 30;
   else if (retirementAge <= 60) withdrawalMultiple = 28;
@@ -187,40 +145,28 @@ function buildChartData({
   else withdrawalMultiple = 22;
 
   const needed = inflatedBudget * withdrawalMultiple;
+  const ages = Array.from({ length: 71 }, (_, i) => 20 + i);
 
-  const ages = Array.from({ length: 71 }, (_, i) => 20 + i); // 20 → 90
-
-  // Projected savings (using monthly compounding)
   const balanceAtAge = {};
   balanceAtAge[currentAge] = savings;
   let mc = contribution;
-
-// Inside buildChartData
-for (let age = currentAge; age < retirementAge; age++) {
-  let yearBal = balanceAtAge[age];
-  for (let m = 0; m < 12; m++) {
-    yearBal = yearBal * (1 + MONTHLY_RETURN) + mc;
+  for (let age = currentAge; age < retirementAge; age++) {
+    let yearBal = balanceAtAge[age];
+    for (let m = 0; m < 12; m++) yearBal = yearBal * (1 + MONTHLY_RETURN) + mc;
+    balanceAtAge[age + 1] = yearBal;
+    mc = mc * (1 + incRate);
   }
-  balanceAtAge[age + 1] = yearBal;
-  // Apply increase once per year
-  mc = mc * (1 + incRate);
-}
 
-  // Drawdown with healthcare escalation
   for (let age = retirementAge; age < 90; age++) {
     const prev = balanceAtAge[age] ?? 0;
-
-    // Healthcare cost escalation after 75
-    let budgetAtAge = inflatedBudget;
-    if (age >= HEALTHCARE_ESCALATION_AGE) {
-      const yearsAbove75 = age - HEALTHCARE_ESCALATION_AGE;
-      budgetAtAge =
-        inflatedBudget * Math.pow(1 + HEALTHCARE_ESCALATION_RATE, yearsAbove75);
-    } else {
-      budgetAtAge =
-        inflatedBudget * Math.pow(1 + inflRate, age - retirementAge);
-    }
-
+    let budgetAtAge =
+      age >= HEALTHCARE_ESCALATION_AGE
+        ? inflatedBudget *
+          Math.pow(
+            1 + HEALTHCARE_ESCALATION_RATE,
+            age - HEALTHCARE_ESCALATION_AGE,
+          )
+        : inflatedBudget * Math.pow(1 + inflRate, age - retirementAge);
     balanceAtAge[age + 1] = Math.max(
       0,
       prev * (1 + DRAWDOWN_RETURN) - budgetAtAge,
@@ -232,25 +178,21 @@ for (let age = currentAge; age < retirementAge; age++) {
     val: age < currentAge ? 0 : Math.round(balanceAtAge[age] ?? 0),
   }));
 
-  // Required path (what you need to stay on track)
   const requiredAtAge = {};
   for (let age = currentAge; age <= retirementAge; age++) {
     const progress = yearsToRetire > 0 ? (age - currentAge) / yearsToRetire : 1;
     requiredAtAge[age] = needed * progress;
   }
-
   let reqBal = needed;
   for (let age = retirementAge; age < 90; age++) {
-    let budgetAtAge = inflatedBudget;
-    if (age >= HEALTHCARE_ESCALATION_AGE) {
-      const yearsAbove75 = age - HEALTHCARE_ESCALATION_AGE;
-      budgetAtAge =
-        inflatedBudget * Math.pow(1 + HEALTHCARE_ESCALATION_RATE, yearsAbove75);
-    } else {
-      budgetAtAge =
-        inflatedBudget * Math.pow(1 + inflRate, age - retirementAge);
-    }
-
+    let budgetAtAge =
+      age >= HEALTHCARE_ESCALATION_AGE
+        ? inflatedBudget *
+          Math.pow(
+            1 + HEALTHCARE_ESCALATION_RATE,
+            age - HEALTHCARE_ESCALATION_AGE,
+          )
+        : inflatedBudget * Math.pow(1 + inflRate, age - retirementAge);
     reqBal = Math.max(0, reqBal * (1 + DRAWDOWN_RETURN) - budgetAtAge);
     requiredAtAge[age + 1] = reqBal;
   }
@@ -259,11 +201,8 @@ for (let age = currentAge; age < retirementAge; age++) {
     age,
     val: age < currentAge ? 0 : Math.round(requiredAtAge[age] ?? 0),
   }));
-
   const allVals = [...projected, ...requiredPath].map((p) => p.val);
-  const maxVal = Math.max(...allVals, 1);
-
-  return { projected, required: requiredPath, maxVal };
+  return { projected, required: requiredPath, maxVal: Math.max(...allVals, 1) };
 }
 
 // ─── Summary card ─────────────────────────────────────────────────────────────
@@ -447,15 +386,12 @@ function RetirementChart({ chartData, retirementAge, currentAge }) {
     PB = 26;
   const innerW = W - PL - PR;
   const innerH = H - PT - PB;
-
   const ages = chartData.projected.map((p) => p.age);
   const minAge = ages[0];
   const maxAge = ages[ages.length - 1];
   const maxVal = chartData.maxVal || 1_000_000;
-
   const xS = (age) => ((age - minAge) / (maxAge - minAge)) * innerW;
   const yS = (val) => innerH - (val / maxVal) * innerH;
-
   const toPath = (pts) =>
     pts
       .map(
@@ -463,13 +399,10 @@ function RetirementChart({ chartData, retirementAge, currentAge }) {
           `${i === 0 ? "M" : "L"}${xS(p.age).toFixed(1)},${yS(p.val).toFixed(1)}`,
       )
       .join(" ");
-
   const peak = chartData.projected.reduce((a, b) => (b.val > a.val ? b : a));
-
   const yTicks = Array.from({ length: 5 }, (_, i) =>
     Math.round((maxVal / 4) * i),
   );
-
   const retX = xS(retirementAge);
   const curX = xS(currentAge);
 
@@ -501,7 +434,6 @@ function RetirementChart({ chartData, retirementAge, currentAge }) {
           <span className="text-[10px] text-gray-400">Retirement</span>
         </div>
       </div>
-
       <svg
         width="100%"
         viewBox={`0 0 ${W} ${H}`}
@@ -513,7 +445,6 @@ function RetirementChart({ chartData, retirementAge, currentAge }) {
             <stop offset="100%" stopColor="#c7a481" stopOpacity="0" />
           </linearGradient>
         </defs>
-
         <g transform={`translate(${PL},${PT})`}>
           {yTicks.map((t) => (
             <line
@@ -526,7 +457,6 @@ function RetirementChart({ chartData, retirementAge, currentAge }) {
               strokeWidth={0.5}
             />
           ))}
-
           <line
             x1={retX}
             y1={0}
@@ -539,12 +469,10 @@ function RetirementChart({ chartData, retirementAge, currentAge }) {
           <text x={retX + 3} y={8} fill="#666" fontSize={6.5} fontWeight="500">
             Age {retirementAge}
           </text>
-
           <path
             d={`${toPath(chartData.projected)} L${xS(maxAge)},${innerH} L${xS(minAge)},${innerH} Z`}
             fill="url(#goldGrad)"
           />
-
           <path
             d={toPath(chartData.required)}
             fill="none"
@@ -554,7 +482,6 @@ function RetirementChart({ chartData, retirementAge, currentAge }) {
             strokeLinejoin="round"
             strokeLinecap="round"
           />
-
           <path
             d={toPath(chartData.projected)}
             fill="none"
@@ -563,7 +490,6 @@ function RetirementChart({ chartData, retirementAge, currentAge }) {
             strokeLinejoin="round"
             strokeLinecap="round"
           />
-
           <circle
             cx={xS(peak.age)}
             cy={yS(peak.val)}
@@ -592,7 +518,6 @@ function RetirementChart({ chartData, retirementAge, currentAge }) {
           >
             {fmtK(peak.val)}
           </text>
-
           <circle
             cx={curX}
             cy={yS(
@@ -603,7 +528,6 @@ function RetirementChart({ chartData, retirementAge, currentAge }) {
             stroke="#1a1a1a"
             strokeWidth={1}
           />
-
           {yTicks.map((t) => (
             <text
               key={t}
@@ -620,7 +544,6 @@ function RetirementChart({ chartData, retirementAge, currentAge }) {
                   : `$${Math.round(t / 1000)}k`}
             </text>
           ))}
-
           {[20, 30, 40, 50, 60, 70, 80, 90].map((age) => (
             <text
               key={age}
@@ -633,7 +556,6 @@ function RetirementChart({ chartData, retirementAge, currentAge }) {
               {age}
             </text>
           ))}
-
           <line
             x1={0}
             y1={innerH}
@@ -715,10 +637,15 @@ function RetirementDetailInner() {
   const router = useRouter();
   const params = useSearchParams();
 
-  // ── ALL hooks at the top — no early returns before this block ─────────────
+  // Get logged-in user from Redux
+  const user = useSelector((state) => state.auth.user);
+
   const [config, setConfig] = useState(null);
   const [configLoading, setConfigLoading] = useState(true);
   const [configError, setConfigError] = useState(false);
+
+  // "idle" | "saving" | "saved" | "error"
+  const [saveStatus, setSaveStatus] = useState("idle");
 
   useEffect(() => {
     async function fetchConfig() {
@@ -738,7 +665,7 @@ function RetirementDetailInner() {
           setConfigError(true);
         }
       } catch (error) {
-        console.error("[v0] Error fetching retirement config:", error);
+        console.error("[RetirementDetail] Firestore config error:", error);
         setConfigError(true);
       } finally {
         setConfigLoading(false);
@@ -756,7 +683,6 @@ function RetirementDetailInner() {
   const incomeIncrease = Number(params.get("incomeIncrease") || 3);
   const inflationRate = Number(params.get("inflationRate") || 2.5);
 
-  // ── useMemo calls always run — guard with if (!config) inside ─────────────
   const result = useMemo(() => {
     if (!config) return null;
     return calcRetirement({
@@ -813,9 +739,8 @@ function RetirementDetailInner() {
     const yearsToRetire = retirementAge - currentAge;
     const calc = (rate) => {
       let bal = savings;
-      for (let y = 0; y < yearsToRetire; y++) {
+      for (let y = 0; y < yearsToRetire; y++)
         bal = bal * (1 + rate) + contribution * 12;
-      }
       return Math.round(bal);
     };
     return [
@@ -856,6 +781,40 @@ function RetirementDetailInner() {
 
   const editUrl = `/retirement?currentAge=${currentAge}&income=${income}&savings=${savings}&contribution=${contribution}&budget=${budget}&retirementAge=${retirementAge}&incomeIncrease=${incomeIncrease}&inflationRate=${inflationRate}`;
 
+  // ── Save to Firestore ───────────────────────────────────────────────────────
+  // Stored under: users/{uid}/retirement_reports/{auto-id}
+  const handleSave = async () => {
+    if (!user?.uid) {
+      alert("Please log in to save reports.");
+      return;
+    }
+    setSaveStatus("saving");
+    try {
+      await addDoc(collection(db, "users", user.uid, "retirement_reports"), {
+        // All input values — used to pre-fill the form on revisit
+        currentAge,
+        income,
+        savings,
+        contribution,
+        budget,
+        retirementAge,
+        incomeIncrease,
+        inflationRate,
+        // Computed summary — useful for display in a future reports list
+        projectedSavings: result.projectedSavings,
+        needed: result.needed,
+        ageRunOut: result.ageRunOut,
+        savedAt: serverTimestamp(),
+      });
+      setSaveStatus("saved");
+      setTimeout(() => setSaveStatus("idle"), 2500);
+    } catch (err) {
+      console.error("[handleSave] Firestore error:", err);
+      setSaveStatus("error");
+      setTimeout(() => setSaveStatus("idle"), 2500);
+    }
+  };
+
   const handleExport = () => {
     if (!result) return;
     const lines = [
@@ -880,6 +839,15 @@ function RetirementDetailInner() {
     URL.revokeObjectURL(url);
   };
 
+  const saveLabel =
+    saveStatus === "saving"
+      ? "Saving…"
+      : saveStatus === "saved"
+        ? "✓ Saved!"
+        : saveStatus === "error"
+          ? "Error — Try Again"
+          : "Save";
+
   // ── Early returns AFTER all hooks ─────────────────────────────────────────
   if (configLoading) {
     return (
@@ -903,23 +871,20 @@ function RetirementDetailInner() {
       style={{ backgroundColor: "#1a1a1a" }}
     >
       <div className="px-5 py-8 lg:px-8 lg:py-12">
-        {/* Back */}
         <button
           onClick={() => router.back()}
           className="flex items-center gap-2 text-sm text-gray-400 hover:text-white transition-colors mb-6"
         >
-          <ArrowLeft size={16} />
-          Back
+          <ArrowLeft size={16} /> Back
         </button>
 
-        {/* Heading */}
+        <GoodMorning />
         <h1 className="text-3xl lg:text-4xl font-extrabold leading-tight mb-6">
           Your <span className="text-[#c7a481]">retirement</span>
           <br />
           options results
         </h1>
 
-        {/* Assumptions note — now dynamic from Firebase */}
         <p className="text-xs text-gray-500 mb-4">
           Assumes {(config.annualReturn * 100).toFixed(0)}% annual return during
           accumulation, {(config.drawdownReturn * 100).toFixed(0)}% during
@@ -927,7 +892,6 @@ function RetirementDetailInner() {
           withdrawal rule ({config.withdrawalMultiple}× annual spend).
         </p>
 
-        {/* Summary card */}
         <SummaryCard
           currentAge={currentAge}
           income={income}
@@ -936,19 +900,15 @@ function RetirementDetailInner() {
           onEdit={() => router.push(editUrl)}
         />
 
-        {/* Learn how link */}
         <button
           className="mt-4 flex items-center gap-1.5 text-xs"
           style={{ color: "#c7a481" }}
         >
-          <span>●</span>
-          Learn how we calculated your results
+          <span>●</span> Learn how we calculated your results
         </button>
 
-        {/* Analysis label */}
         <p className="mt-6 mb-3 text-sm font-bold text-white">Analysis</p>
 
-        {/* Accordion */}
         <AnalysisAccordion
           retirementAge={retirementAge}
           projectedSavings={result.projectedSavings}
@@ -958,24 +918,23 @@ function RetirementDetailInner() {
           ageRunOut={result.ageRunOut}
         />
 
-        {/* Chart */}
         <RetirementChart
           chartData={chartData}
           retirementAge={retirementAge}
           currentAge={currentAge}
         />
 
-        {/* Performance table — fully dynamic from Firebase */}
         <PerformanceTable accounts={accounts} />
 
-        {/* Buttons */}
+        {/* Action buttons */}
         <div className="mt-8 space-y-3">
           <button
-            onClick={() => alert("Saved!")}
-            className="w-full py-4 rounded-2xl font-bold text-white text-base transition-all hover:opacity-90 active:scale-[0.98]"
+            onClick={handleSave}
+            disabled={saveStatus === "saving"}
+            className="w-full py-4 rounded-2xl font-bold text-white text-base transition-all hover:opacity-90 active:scale-[0.98] disabled:opacity-60"
             style={{ backgroundColor: "#8b1c1c" }}
           >
-            Save
+            {saveLabel}
           </button>
           <button
             onClick={handleExport}
