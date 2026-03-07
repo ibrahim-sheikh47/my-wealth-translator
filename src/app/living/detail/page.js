@@ -63,7 +63,7 @@ function StateCard({ fromState, toState, income, onEdit }) {
         className="flex items-center gap-2 rounded-xl px-4 py-2 text-sm font-semibold text-white transition-all hover:opacity-80 active:scale-95"
         style={{ backgroundColor: "#3a3a3a" }}
       >
-        <span className="text-xs font-bold" style={{ color: "#7ec87e" }}>
+        <span className="text-xs font-bold" style={{ color: "#fff" }}>
           Current: {fmt(income)}
         </span>
         <Pencil size={13} className="text-gray-400" />
@@ -145,6 +145,9 @@ function CategoryRow({ cat, fromState, toState }) {
   const [open, setOpen] = useState(cat.id === "housing");
   const { icon: Icon } = cat;
 
+  // New logic for neutral zero state
+  const isZero = cat.pct === 0;
+
   return (
     <div
       className="rounded-2xl overflow-hidden mb-3"
@@ -167,14 +170,21 @@ function CategoryRow({ cat, fromState, toState }) {
           <span
             className="text-xs font-bold px-2.5 py-1 rounded-full"
             style={{
-              backgroundColor:
-                cat.dir === "lower"
+              backgroundColor: isZero
+                ? "rgba(255,255,255,0.05)" // Neutral background for 0
+                : cat.dir === "lower"
                   ? "rgba(126,200,126,0.15)"
                   : "rgba(239,68,68,0.15)",
-              color: cat.dir === "lower" ? "#7ec87e" : "#ef4444",
+              color: isZero
+                ? "#fff" // White text for 0
+                : cat.dir === "lower"
+                  ? "#7ec87e"
+                  : "#ef4444",
             }}
           >
-            {cat.dir === "lower" ? "↓" : "↑"} {cat.pct}%
+            {/* Hide arrow if zero */}
+            {!isZero && (cat.dir === "lower" ? "↓ " : "↑ ")}
+            {cat.pct}%
           </span>
           {open ? (
             <ChevronUp size={16} className="text-gray-500" />
@@ -184,6 +194,7 @@ function CategoryRow({ cat, fromState, toState }) {
         </div>
       </button>
 
+      {/* ... rest of the component remains the same ... */}
       {open && (
         <div className="px-5 pb-5">
           <div className="grid grid-cols-3 text-xs text-gray-500 mb-3 border-t border-white/5 pt-4">
@@ -295,83 +306,83 @@ export default function LivingDetail() {
     const tickStep = Math.ceil(rawStep / 5000) * 5000;
     const barMax = tickStep * 5;
 
-  const categories = [
-  {
-    id: "housing",
-    label: "Housing",
-    icon: Home,
-    fromIdx: dbData.fromMedianRent,
-    toIdx: dbData.toMedianRent,
-    rows: [
+    const categories = [
       {
-        label: "Median Rent / mo",
-        from: dbData.fromMedianRent,
-        to: dbData.toMedianRent,
+        id: "housing",
+        label: "Housing",
+        icon: Home,
+        fromIdx: dbData.fromMedianRent,
+        toIdx: dbData.toMedianRent,
+        rows: [
+          {
+            label: "Median Rent / mo",
+            from: dbData.fromMedianRent,
+            to: dbData.toMedianRent,
+          },
+          {
+            label: "Median Home Value",
+            from: dbData.fromMedianHome,
+            to: dbData.toMedianHome,
+          },
+        ],
       },
       {
-        label: "Median Home Value",
-        from: dbData.fromMedianHome,
-        to: dbData.toMedianHome,
+        id: "groceries",
+        label: "Groceries",
+        icon: UtensilsCrossed,
+        fromIdx: dbData.fromGroceryIdx,
+        toIdx: dbData.toGroceryIdx,
+        rows: [
+          {
+            label: "Monthly Budget Est.",
+            from: Math.round(400 * (dbData.fromGroceryIdx / 100)),
+            to: Math.round(400 * (dbData.toGroceryIdx / 100)),
+          },
+        ],
       },
-    ],
-  },
-  {
-    id: "groceries",
-    label: "Groceries",
-    icon: UtensilsCrossed,
-    fromIdx: dbData.fromGroceryIdx,
-    toIdx: dbData.toGroceryIdx,
-    rows: [
       {
-        label: "Monthly Budget Est.",
-        from: Math.round(400 * (dbData.fromGroceryIdx / 100)),
-        to: Math.round(400 * (dbData.toGroceryIdx / 100)),
+        id: "transportation",
+        label: "Transportation",
+        icon: Car,
+        fromIdx: dbData.fromGasPrice,
+        toIdx: dbData.toGasPrice,
+        rows: [
+          {
+            label: "Gas Price / gal",
+            from: dbData.fromGasPrice,
+            to: dbData.toGasPrice,
+          },
+        ],
       },
-    ],
-  },
-  {
-    id: "transportation",
-    label: "Transportation",
-    icon: Car,
-    fromIdx: dbData.fromGasPrice,
-    toIdx: dbData.toGasPrice,
-    rows: [
       {
-        label: "Gas Price / gal",
-        from: dbData.fromGasPrice,
-        to: dbData.toGasPrice,
+        id: "utilities",
+        label: "Utilities",
+        icon: Zap,
+        fromIdx: dbData.fromElecBill,
+        toIdx: dbData.toElecBill,
+        rows: [
+          {
+            label: "Avg Electric Bill / mo",
+            from: dbData.fromElecBill,
+            to: dbData.toElecBill,
+          },
+        ],
       },
-    ],
-  },
-  {
-    id: "utilities",
-    label: "Utilities",
-    icon: Zap,
-    fromIdx: dbData.fromElecBill,
-    toIdx: dbData.toElecBill,
-    rows: [
       {
-        label: "Avg Electric Bill / mo",
-        from: dbData.fromElecBill,
-        to: dbData.toElecBill,
+        id: "health",
+        label: "Healthcare",
+        icon: HeartPulse,
+        fromIdx: dbData.fromDocVisit,
+        toIdx: dbData.toDocVisit,
+        rows: [
+          {
+            label: "Doctor Visit (cash)",
+            from: dbData.fromDocVisit,
+            to: dbData.toDocVisit,
+          },
+        ],
       },
-    ],
-  },
-  {
-    id: "health",
-    label: "Healthcare",
-    icon: HeartPulse,
-    fromIdx: dbData.fromDocVisit,
-    toIdx: dbData.toDocVisit,
-    rows: [
-      {
-        label: "Doctor Visit (cash)",
-        from: dbData.fromDocVisit,
-        to: dbData.toDocVisit,
-      },
-    ],
-  },
-];
+    ];
 
     const enrichedCategories = categories.map((cat) => {
       const ratio = cat.toIdx / cat.fromIdx;
@@ -434,12 +445,16 @@ export default function LivingDetail() {
                 </h2>
                 <span
                   className={`text-sm font-bold px-3 py-1.5 rounded-full ${
-                    processedData.overallDir === "lower"
-                      ? "bg-green-500/10 text-green-400"
-                      : "bg-red-500/10 text-red-400"
+                    processedData.overallPct === 0
+                      ? "bg-white/10 text-white" // Neutral style for 0%
+                      : processedData.overallDir === "lower"
+                        ? "bg-green-500/10 text-green-400"
+                        : "bg-red-500/10 text-red-400"
                   }`}
                 >
-                  {processedData.overallDir === "lower" ? "↓" : "↑"}{" "}
+                  {/* Hide arrow if overallPct is 0 */}
+                  {processedData.overallPct !== 0 &&
+                    (processedData.overallDir === "lower" ? "↓ " : "↑ ")}
                   {processedData.overallPct}%
                 </span>
               </div>

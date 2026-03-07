@@ -50,9 +50,13 @@ export default function Sidebar() {
             height={80}
             className="mx-auto mt-5"
           />
-          <div className="flex items-center justify-center h-20 border-b border-[#2a2a2a] -mt-3">
+          <div className="flex-col text-center mt-4 items-center justify-center h-20 border-b border-[#2a2a2a]">
             <h1 className="text-xl font-bold text-[#c7a481]">My Wealth Translator</h1>
+            <h2 className="text-base mt-1 font-semibold text-[#c7a481] mb-10">
+            The Financial Co-Pilot
+          </h2>
           </div>
+
 
           {/* Navigation */}
           <nav className="flex-1 px-4 py-8 space-y-2">

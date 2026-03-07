@@ -44,3 +44,4 @@ next-env.d.ts
 service-account-key.json
 seed-living.js
 seed-retirement.js
+seed-income.js

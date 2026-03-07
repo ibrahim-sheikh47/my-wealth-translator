@@ -55,9 +55,6 @@ const GoodMorning = () => {
             <h2 className="text-lg font-semibold text-white group-hover:text-[#c7a481] transition-colors duration-200">
               {user?.displayName || user?.firstName || "Guest"}
             </h2>
-            <span className="text-[10px] px-2 py-0.5 rounded-full bg-[#c7a481]/20 text-[#c7a481] border border-[#c7a481]/30 uppercase font-bold">
-              {plan}
-            </span>
           </div>
         </div>
       </div>

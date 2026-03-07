@@ -330,9 +330,6 @@ export default function ProfilePage() {
                     <span>{getInitials(form.name)}</span>
                   )}
                 </div>
-                <button className="absolute bottom-0 right-0 w-7 h-7 rounded-full bg-[#c7a481] flex items-center justify-center shadow-lg hover:bg-[#b8915e] transition-colors">
-                  <Camera size={12} className="text-white" />
-                </button>
               </div>
               <div className="text-center">
                 <h2 className="text-lg font-bold text-white">{form.name}</h2>

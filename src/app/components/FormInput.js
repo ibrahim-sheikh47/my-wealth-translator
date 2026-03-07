@@ -1,5 +1,4 @@
 /* eslint-disable @next/next/no-img-element */
-
 "use client";
 
 import TextField from "@mui/material/TextField";
@@ -20,10 +19,27 @@ export default function FormInput({
   select = false,
   options = [],
   isPassword = false,
+  // --- NEW PROPS ADDED HERE ---
+  maxLength,
+  inputMode,
+  onChange: customOnChange,
+  ...rest
 }) {
   const [showPassword, setShowPassword] = useState(false);
 
   const inputType = isPassword ? (showPassword ? "text" : "password") : type;
+
+  // Merge react-hook-form's onChange with your custom handler
+  const { onChange: registerOnChange, ...registerRest } = register(name);
+
+  const handleCombinedChange = (e) => {
+    // Run react-hook-form's change logic
+    registerOnChange(e);
+    // Run your custom logic (like the 10-digit limit) if it exists
+    if (customOnChange) {
+      customOnChange(e);
+    }
+  };
 
   return (
     <div className="w-full">
@@ -42,7 +58,15 @@ export default function FormInput({
         select={select}
         error={!!error}
         helperText={error?.message}
-        {...register(name)}
+        // Apply merged register props
+        {...registerRest}
+        onChange={handleCombinedChange}
+        // --- PASS NATIVE ATTRIBUTES HERE ---
+        inputProps={{
+          maxLength: maxLength,
+          inputMode: inputMode,
+        }}
+        // ------------------------------------
         InputProps={{
           startAdornment: icon ? (
             <InputAdornment position="start">
@@ -87,12 +111,10 @@ export default function FormInput({
             borderColor: "#c7a481",
           },
 
-          // 🚫 Disable hover border change
           "& .MuiOutlinedInput-root:hover .MuiOutlinedInput-notchedOutline": {
             borderColor: "#c7a481",
           },
 
-          // ✅ Focus border (same color or change if you want)
           "& .MuiOutlinedInput-root.Mui-focused .MuiOutlinedInput-notchedOutline":
             {
               borderColor: "#c7a481",
@@ -118,14 +140,9 @@ export default function FormInput({
             borderColor: "#c7a481",
           },
           "& input[type='date']::-webkit-calendar-picker-indicator": {
-            filter: "invert(1)", // makes it white
+            filter: "invert(1)",
             cursor: "pointer",
           },
-          "& .MuiInputBase-root": {
-            backgroundColor: "#111",
-            color: "#fff",
-          },
-
           "& input:-webkit-autofill": {
             WebkitBoxShadow: "0 0 0 1000px #111 inset",
             WebkitTextFillColor: "#fff",
@@ -142,6 +159,7 @@ export default function FormInput({
             WebkitBoxShadow: "0 0 0 1000px #111 inset",
             WebkitTextFillColor: "#fff",
           },
+          ...rest.sx, // Allows you to pass extra styles if needed elsewhere
         }}
       >
         {select &&

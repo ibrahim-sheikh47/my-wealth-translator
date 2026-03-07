@@ -1,44 +1,67 @@
-// app/auth/signup/page.jsx
 "use client";
 
-import { useState, useRef } from "react";
 import { useForm } from "react-hook-form";
 import { yupResolver } from "@hookform/resolvers/yup";
 import { signupSchema } from "../../validations/schema";
 import { useAuth } from "@/app/hooks/useAuth";
-import {
-  User,
-  Mail,
-  Lock,
-  MapPin,
-  Phone,
-  Upload,
-  CheckCircle2,
-  Flag,
-} from "lucide-react";
+import { User, Mail, Lock, MapPin, Phone, CheckCircle2 } from "lucide-react";
 import Link from "next/link";
 import Image from "next/image";
 import FormInput from "../../components/FormInput";
 import Btn from "@/app/components/Btn";
 
-const LOCATION_OPTIONS = [
-  { value: "new_york", label: "New York, NY" },
-  { value: "los_angeles", label: "Los Angeles, CA" },
-  { value: "chicago", label: "Chicago, IL" },
-  { value: "houston", label: "Houston, TX" },
-  { value: "phoenix", label: "Phoenix, AZ" },
-  { value: "philadelphia", label: "Philadelphia, PA" },
-  { value: "san_antonio", label: "San Antonio, TX" },
-  { value: "san_diego", label: "San Diego, CA" },
-  { value: "dallas", label: "Dallas, TX" },
-  { value: "san_jose", label: "San Jose, CA" },
-  { value: "austin", label: "Austin, TX" },
-  { value: "denver", label: "Denver, CO" },
-  { value: "seattle", label: "Seattle, WA" },
-  { value: "boston", label: "Boston, MA" },
-  { value: "miami", label: "Miami, FL" },
+const STATE_OPTIONS = [
+  { value: "AL", label: "Alabama" },
+  { value: "AK", label: "Alaska" },
+  { value: "AZ", label: "Arizona" },
+  { value: "AR", label: "Arkansas" },
+  { value: "CA", label: "California" },
+  { value: "CO", label: "Colorado" },
+  { value: "CT", label: "Connecticut" },
+  { value: "DE", label: "Delaware" },
+  { value: "FL", label: "Florida" },
+  { value: "GA", label: "Georgia" },
+  { value: "HI", label: "Hawaii" },
+  { value: "ID", label: "Idaho" },
+  { value: "IL", label: "Illinois" },
+  { value: "IN", label: "Indiana" },
+  { value: "IA", label: "Iowa" },
+  { value: "KS", label: "Kansas" },
+  { value: "KY", label: "Kentucky" },
+  { value: "LA", label: "Louisiana" },
+  { value: "ME", label: "Maine" },
+  { value: "MD", label: "Maryland" },
+  { value: "MA", label: "Massachusetts" },
+  { value: "MI", label: "Michigan" },
+  { value: "MN", label: "Minnesota" },
+  { value: "MS", label: "Mississippi" },
+  { value: "MO", label: "Missouri" },
+  { value: "MT", label: "Montana" },
+  { value: "NE", label: "Nebraska" },
+  { value: "NV", label: "Nevada" },
+  { value: "NH", label: "New Hampshire" },
+  { value: "NJ", label: "New Jersey" },
+  { value: "NM", label: "New Mexico" },
+  { value: "NY", label: "New York" },
+  { value: "NC", label: "North Carolina" },
+  { value: "ND", label: "North Dakota" },
+  { value: "OH", label: "Ohio" },
+  { value: "OK", label: "Oklahoma" },
+  { value: "OR", label: "Oregon" },
+  { value: "PA", label: "Pennsylvania" },
+  { value: "RI", label: "Rhode Island" },
+  { value: "SC", label: "South Carolina" },
+  { value: "SD", label: "South Dakota" },
+  { value: "TN", label: "Tennessee" },
+  { value: "TX", label: "Texas" },
+  { value: "UT", label: "Utah" },
+  { value: "VT", label: "Vermont" },
+  { value: "VA", label: "Virginia" },
+  { value: "WA", label: "Washington" },
+  { value: "WV", label: "West Virginia" },
+  { value: "WI", label: "Wisconsin" },
+  { value: "WY", label: "Wyoming" },
 ];
-
 
 const PASSWORD_REQUIREMENTS = [
   { regex: /[A-Z]/, label: "One uppercase letter" },
@@ -50,75 +73,47 @@ const PASSWORD_REQUIREMENTS = [
 
 export default function SignupPage() {
   const { signup, isLoading, error, dismissError } = useAuth();
-  const fileInputRef = useRef(null);
-  const [profilePhoto, setProfilePhoto] = useState(null);
-  const [previewUrl, setPreviewUrl] = useState(null);
-  const [localError, setLocalError] = useState("");
 
   const {
     register,
     handleSubmit,
+    setValue, // Used to manually update the formatted value
     watch,
     formState: { errors },
   } = useForm({
     resolver: yupResolver(signupSchema),
     mode: "onBlur",
     defaultValues: {
-      countryCode: "+1", // Ensure this is set
+      countryCode: "+1",
       phoneNumber: "",
     },
   });
 
   const passwordValue = watch("password", "");
 
-  const handlePhotoChange = (e) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    if (
-      !["image/jpeg", "image/png", "image/gif", "image/webp"].includes(
-        file.type,
-      )
-    ) {
-      setLocalError(
-        "Please upload a valid image file (JPG, PNG, GIF, or WebP)",
-      );
-      return;
-    }
-    if (file.size > 5 * 1024 * 1024) {
-      setLocalError("File size must be less than 5MB");
-      return;
-    }
-    setProfilePhoto(file);
-    const reader = new FileReader();
-    reader.onloadend = () => setPreviewUrl(reader.result);
-    reader.readAsDataURL(file);
-    setLocalError("");
-  };
+  // --- MASKING LOGIC WITHOUT LIBRARIES ---
+  const handlePhoneChange = (e) => {
+    // Remove non-digits and slice to 10 immediately
+    const value = e.target.value.replace(/\D/g, "").slice(0, 10);
 
+    // Update the form state
+    setValue("phoneNumber", value, { shouldValidate: true });
+  };
   const onSubmit = async (data) => {
     dismissError();
-    setLocalError("");
-
     const formData = new FormData();
     formData.append("firstName", data.firstName);
     formData.append("lastName", data.lastName);
     formData.append("email", data.email);
     formData.append("location", data.location);
 
-    // Directly prepend +1 or use the default value from hook-form
-    formData.append(
-      "phoneNumber",
-      `+1${data.phoneNumber.replace(/\D/g, "")}`, // Regex cleans non-digits if needed
-    );
+    // Clean data for the backend (+11234567890)
+    const cleanPhone = data.phoneNumber.replace(/\D/g, "");
+    formData.append("phoneNumber", `+1${cleanPhone}`);
 
     formData.append("password", data.password);
-    formData.append("agreeToTerms", data.agreeToTerms);
-    if (profilePhoto) formData.append("profilePhoto", profilePhoto);
-
     await signup(formData);
   };
-
-  const displayError = localError || error;
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-[#1a1a1a] px-4 py-8">
@@ -126,16 +121,20 @@ export default function SignupPage() {
         <div className="text-center mb-8">
           <Image
             src="/logo.png"
-            alt="Wealth Logo"
+            alt="Logo"
             width={80}
             height={80}
             className="mx-auto mb-4"
           />
-          <h1 className="text-xl font-bold text-[#c7a481] mb-10">
-              My Wealth Translator
-            </h1>
-          <h1 className="text-xl font-semibold text-white mb-1">
-            Don&apos;t have an account
+
+          <h1 className="md:text-2xl font-bold text-[#c7a481] mb-1">
+            My Wealth Translator
+          </h1>
+          <h2 className="text-lg font-semibold text-[#c7a481] mb-10">
+            The Financial Co-Pilot
+          </h2>
+           <h1 className="text-xl font-semibold text-white mb-1">
+            Don’t have an account
           </h1>
           <p className="text-lg font-semibold text-white">
             Sign up to get started
@@ -143,116 +142,101 @@ export default function SignupPage() {
         </div>
 
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
-          <div className="flex items-center gap-3">
+          <div className="flex gap-3">
             <FormInput
-              label=""
               name="firstName"
               register={register}
               error={errors.firstName}
-              type="text"
-              placeholder="Enter your first name *"
-              title=""
+              placeholder="First Name *"
               icon={<User size={20} />}
             />
             <FormInput
-              label=""
               name="lastName"
               register={register}
               error={errors.lastName}
-              type="text"
-              placeholder="Enter your last name *"
-              title=""
+              placeholder="Last Name *"
               icon={<User size={20} />}
             />
           </div>
 
-          <div className="flex items-center gap-3">
+          <div className="flex gap-3">
             <FormInput
-              label=""
               name="email"
               register={register}
               error={errors.email}
               type="email"
-              placeholder="Enter your email *"
-              title=""
+              placeholder="Email *"
               icon={<Mail size={20} />}
             />
             <FormInput
-              label=""
               name="location"
               register={register}
               error={errors.location}
-              select={true}
-              options={LOCATION_OPTIONS}
-              placeholder="Enter your location *"
-              title=""
+              select
+              options={STATE_OPTIONS}
+              placeholder="Select State *"
               icon={<MapPin size={20} />}
             />
           </div>
 
           <div className="flex gap-2">
-            <FormInput
-              label=""
-              name="countryCode"
-              register={register}
-              error={null}
-              title=""
-              customClass="w-24"
-              icon={<span role="img" aria-label="US Flag">🇺🇸</span>}
-            />
-            {/* Replace the previous flex gap-2 div with this */}
+            <div className="w-24">
+              <FormInput
+                name="countryCode"
+                register={register}
+                readOnly
+                disabled
+                customClass="bg-zinc-800 cursor-not-allowed opacity-70"
+                icon={<span className="text-xs">🇺🇸</span>}
+              />
+            </div>
             <div className="w-full">
               <FormInput
-                label=""
                 name="phoneNumber"
                 register={register}
                 error={errors.phoneNumber}
-                type="tel"
-                placeholder="Phone Number (e.g. 123 456 7890) *"
-                title=""
+                placeholder="5555555555 *"
                 icon={<Phone size={20} />}
-                customClass="w-full"
+                maxLength={10} // Physical limit for keystrokes
+                inputMode="numeric" // Opens number pad on mobile
+                type="tel" // Semantic type for phone numbers
+                onChange={handlePhoneChange}
               />
             </div>
           </div>
 
-          <div className="flex items-start gap-3">
+          <div className="flex gap-3">
             <div className="w-full">
               <FormInput
-                label=""
                 name="password"
                 register={register}
                 error={errors.password}
                 type="password"
-                placeholder="Create your password *"
-                title=""
+                placeholder="Password *"
+                isPassword
                 icon={<Lock size={20} />}
-                isPassword={true}
               />
               {passwordValue && (
-                <div className="mt-3 p-3 bg-[#1a1a1a] border border-[#3a3a3a] rounded-lg">
-                  <p className="text-xs text-zinc-400 mb-2">
-                    Password requirements:
-                  </p>
-                  <div className="space-y-2">
+                <div className="mt-3 p-3 bg-[#111] border border-[#3a3a3a] rounded-lg">
+                  <div className="space-y-1">
                     {PASSWORD_REQUIREMENTS.map((req, idx) => (
                       <div
                         key={idx}
-                        className="flex items-center gap-2 text-xs"
+                        className="flex items-center gap-2 text-[10px]"
                       >
                         <CheckCircle2
-                          size={14}
+                          size={12}
                           className={
                             req.regex.test(passwordValue)
                               ? "text-[#c7a481]"
-                              : "text-zinc-500"
+                              : "text-zinc-600"
                           }
                         />
                         <span
                           className={
                             req.regex.test(passwordValue)
                               ? "text-zinc-300"
-                              : "text-zinc-500"
+                              : "text-zinc-600"
                           }
                         >
                           {req.label}
@@ -264,75 +248,15 @@ export default function SignupPage() {
               )}
             </div>
             <FormInput
-              label=""
               name="confirmPassword"
               register={register}
               error={errors.confirmPassword}
               type="password"
-              placeholder="Confirm your password *"
-              title=""
+              placeholder="Confirm Password *"
+              isPassword
               icon={<Lock size={20} />}
-              isPassword={true}
             />
           </div>
-
-          {/* Photo upload */}
-          <input
-            ref={fileInputRef}
-            type="file"
-            accept="image/*"
-            onChange={handlePhotoChange}
-            className="hidden"
-          />
-          <button
-            type="button"
-            onClick={() => fileInputRef.current?.click()}
-            className="w-full py-8 border-2 border-dashed border-[#3a3a3a] rounded-lg hover:border-[#c7a481] transition flex flex-col items-center justify-center gap-2 bg-[#1a1a1a]"
-          >
-            {previewUrl ? (
-              <img
-                src={previewUrl}
-                alt="Profile preview"
-                className="w-12 h-12 rounded-full object-cover"
-              />
-            ) : (
-              <>
-                <Upload size={24} className="text-[#c7a481]" />
-                <span className="text-sm text-zinc-400">
-                  Upload profile photo
-                </span>
-              </>
-            )}
-          </button>
-
-          <div className="flex items-start gap-3">
-            <input
-              type="checkbox"
-              id="agreeToTerms"
-              {...register("agreeToTerms")}
-              className="mt-1 w-4 h-4 accent-[#c7a481] cursor-pointer"
-            />
-            <label
-              htmlFor="agreeToTerms"
-              className="text-sm text-zinc-400 cursor-pointer"
-            >
-              Agree to{" "}
-              <Link href="/terms" className="text-[#c7a481] hover:underline">
-                Terms and Conditions
-              </Link>
-            </label>
-          </div>
-          {errors.agreeToTerms && (
-            <p className="text-red-400 text-xs">
-              {errors.agreeToTerms.message}
-            </p>
-          )}
-
-          {displayError && (
-            <div className="bg-red-500/10 border border-red-500/20 rounded-lg px-4 py-3">
-              <p className="text-red-400 text-sm">{displayError}</p>
-            </div>
-          )}
 
           <Btn
             title={isLoading ? "Creating account..." : "Sign Up"}
@@ -345,7 +269,7 @@ export default function SignupPage() {
             Already have an account?{" "}
             <Link
               href="/auth/login"
-              className="text-white hover:text-[#c7a481] font-medium transition underline"
+              className="text-white hover:text-[#c7a481] underline"
             >
               Login now
             </Link>
