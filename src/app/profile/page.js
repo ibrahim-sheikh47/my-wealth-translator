@@ -266,7 +266,8 @@ export default function ProfilePage() {
   };
 
   // ── Amortization ────────────────────────────────────────────────────────────
-  const handleAmortizationReport = () => router.push("/amortization-calculator");
+  const handleAmortizationReport = () =>
+    router.push("/amortization-calculator");
 
   const faqData = [
     {
@@ -342,6 +343,11 @@ export default function ProfilePage() {
 
             <div className="bg-[#1a1a1a] border border-zinc-800 rounded-2xl p-5 hidden lg:block">
               <SectionHeading>Need some help?</SectionHeading>
+
+              <p className="text-base text-white leading-none mb-5">
+                9am - 5pm (EST)
+              </p>
+
               <div className="space-y-3">
                 <a
                   href="tel:+11234567891"
@@ -352,26 +358,26 @@ export default function ProfilePage() {
                   </div>
                   <div>
                     <p className="text-[10px] text-zinc-500 leading-none mb-0.5">
-                      Contact our 24×7 Customer Service
+                      Customer Support
                     </p>
-                    <p className="text-sm font-semibold text-white group-hover:text-red-300 transition-colors">
-                      +1 (123) 456-7891
+                    <p className="text-sm font-semibold text-white">
+                      +1-(470)-645-2237
                     </p>
                   </div>
                 </a>
                 <a
-                  href="mailto:mwtsupport@email.com"
+                  href="mailto:literacy@felausa.org"
                   className="flex items-center gap-3 p-3 rounded-xl bg-[#c7a481]/10 border border-[#c7a481]/20 hover:border-[#c7a481]/40 transition-all group"
                 >
                   <div className="w-9 h-9 rounded-full bg-[#c7a481]/20 flex items-center justify-center flex-shrink-0">
                     <Send size={14} className="text-[#c7a481]" />
                   </div>
                   <div>
-                    <p className="text-[10px] text-zinc-500 leading-none mb-0.5">
+                    <p className="text-sm text-zinc-500 leading-none mb-0.5">
                       Send us an email
                     </p>
                     <p className="text-sm font-semibold text-white group-hover:text-[#c7a481] transition-colors">
-                      mwtsupport@email.com
+                      literacy@felausa.org
                     </p>
                   </div>
                 </a>
@@ -406,14 +412,6 @@ export default function ProfilePage() {
                   value={form.phone}
                   type="tel"
                   onChange={(e) => setForm({ ...form, phone: e.target.value })}
-                />
-                <InputField
-                  label="Password"
-                  value={form.password}
-                  type="password"
-                  onChange={(e) =>
-                    setForm({ ...form, password: e.target.value })
-                  }
                 />
               </div>
               <div className="mt-5 flex justify-end">
@@ -486,6 +484,10 @@ export default function ProfilePage() {
             {/* Help (mobile) */}
             <div className="bg-[#1a1a1a] border border-zinc-800 rounded-2xl p-6 lg:hidden">
               <SectionHeading>Need some help?</SectionHeading>
+                 <p className="text-base text-white leading-none mb-5">
+                9am - 5pm (EST)
+              </p>
+
               <div className="space-y-3">
                 <a
                   href="tel:+11234567891"
@@ -496,15 +498,15 @@ export default function ProfilePage() {
                   </div>
                   <div>
                     <p className="text-[10px] text-zinc-500 leading-none mb-0.5">
-                      Contact our 24×7 Customer Service
+                      Customer Support
                     </p>
                     <p className="text-sm font-semibold text-white">
-                      +1 (123) 456-7891
+                      +1-(470)-645-2237
                     </p>
                   </div>
                 </a>
                 <a
-                  href="mailto:mwtsupport@email.com"
+                  href="mailto:literacy@felausa.org"
                   className="flex items-center gap-3 p-3 rounded-xl bg-[#c7a481]/10 border border-[#c7a481]/20 hover:border-[#c7a481]/40 transition-all group"
                 >
                   <div className="w-10 h-10 rounded-full bg-[#c7a481]/20 flex items-center justify-center flex-shrink-0">
@@ -515,7 +517,7 @@ export default function ProfilePage() {
                       Send us an email
                     </p>
                     <p className="text-sm font-semibold text-white">
-                      mwtsupport@email.com
+                      literacy@felausa.org
                     </p>
                   </div>
                 </a>
