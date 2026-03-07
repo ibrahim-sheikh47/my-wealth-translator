@@ -50,13 +50,17 @@ export const signupUser = createAsyncThunk(
       const uid        = credential.user.uid;
 
       // 2. Upload profile photo if provided
-      let photoURL = null;
-      if (photoFile && photoFile.size > 0) {
-        const storageRef = ref(storage, `profilePhotos/${uid}`);
-        await uploadBytes(storageRef, photoFile);
-        photoURL = await getDownloadURL(storageRef);
-      }
-
+    let photoURL = null;
+if (photoFile && photoFile.size > 0) {
+  try {
+    const storageRef = ref(storage, `profilePhotos/${uid}`);
+    await uploadBytes(storageRef, photoFile);
+    photoURL = await getDownloadURL(storageRef);
+  } catch (err) {
+    console.warn("[signup] Photo upload skipped:", err.message);
+    // Storage not available — continue without photo
+  }
+}
       // 3. Update Firebase Auth profile
       await updateProfile(credential.user, {
         displayName: `${firstName} ${lastName}`,

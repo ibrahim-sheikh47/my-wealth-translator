@@ -298,20 +298,6 @@ function CustomCalculatorInner() {
           calculator
         </h1>
 
-        {/* "Editing saved report" badge — only shown when pre-filled from profile */}
-        {isEditingSaved && (
-          <div
-            className="mt-3 inline-flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-semibold"
-            style={{
-              backgroundColor: "rgba(199,164,129,0.12)",
-              color: "#c7a481",
-              border: "1px solid rgba(199,164,129,0.25)",
-            }}
-          >
-            ✦ Editing your saved report — update values and recalculate
-          </div>
-        )}
-
         {/* State card */}
         <div className="mt-6">
           <CityCard

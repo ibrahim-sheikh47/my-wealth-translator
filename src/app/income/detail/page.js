@@ -14,28 +14,57 @@ import GoodMorning from "@/app/components/GoodMorning";
 const fmt = (n) =>
   new Intl.NumberFormat("en-US", { style: "currency", currency: "USD", maximumFractionDigits: 0 }).format(n);
 
+// ─── Corrected Helpers ────────────────────────────────────────────────────────
+
 function getWithdrawalMultiplier(timeFrame, baseMultiple) {
-  if (timeFrame <= 10) return Math.round(baseMultiple * 0.8);
-  if (timeFrame <= 20) return baseMultiple;
-  if (timeFrame <= 35) return Math.round(baseMultiple * 1.14);
-  return Math.round(baseMultiple * 1.32);
+  // Logic: The shorter the saving timeframe, the more aggressive the withdrawal
+  // rule tends to be (assuming shorter retirement or higher tolerance).
+  if (timeFrame <= 10) return Math.round(baseMultiple * 0.8); // 20x
+  if (timeFrame <= 20) return baseMultiple;                  // 25x
+  if (timeFrame <= 35) return Math.round(baseMultiple * 1.14); // 28x
+  return Math.round(baseMultiple * 1.32);                     // 33x
 }
 
-function calcIncome({ preTaxIncome, desiredAfterTaxIncome, timeFrame, savings, taxRate, inflationRate, baseMultiple }) {
-  const taxDecimal  = taxRate / 100;
+function calcIncome({ desiredAfterTaxIncome, timeFrame, savings, taxRate, inflationRate, baseMultiple }) {
+  const taxDecimal = taxRate / 100;
   const inflDecimal = inflationRate / 100;
-  const inflationAdjustedTarget = desiredAfterTaxIncome * Math.pow(1 + inflDecimal, timeFrame);
-  const withdrawalMultiplier    = getWithdrawalMultiplier(timeFrame, baseMultiple);
-  const totalNeeded             = inflationAdjustedTarget * withdrawalMultiplier;
-  const additionalNeeded        = Math.max(0, totalNeeded - savings);
-  const taxImpact               = totalNeeded * taxDecimal;
-  const inflationImpact         = totalNeeded * (Math.pow(1 + inflDecimal, timeFrame) - 1);
-  const netSavings              = Math.max(0, totalNeeded - taxImpact - inflationImpact);
-  const total                   = netSavings + inflationImpact + taxImpact;
+
+  // 1. Calculate how much $60k is worth in 10 years (Future Annual Need)
+  const annualTargetInflationAdjusted = desiredAfterTaxIncome * Math.pow(1 + inflDecimal, timeFrame);
+
+  // 2. Calculate Gross Withdrawal (What you must pull out to have the Target left after tax)
+  const annualGrossNeeded = annualTargetInflationAdjusted / (1 - taxDecimal);
+
+  // 3. Apply the Withdrawal Rule (The "Multiplier") to find the total "Pile"
+  const withdrawalMultiplier = getWithdrawalMultiplier(timeFrame, baseMultiple);
+  const totalNeeded = annualGrossNeeded * withdrawalMultiplier;
+
+  // 4. Calculate Additional Savings Gap
+  const additionalNeeded = Math.max(0, totalNeeded - savings);
+
+  // ─── BREAKDOWN FOR THE DONUT CHART ───
+
+  // A. The "Pure" Savings (Cost if Tax and Inflation were 0%)
+  const pureSavingsTerm = (desiredAfterTaxIncome * withdrawalMultiplier);
+
+  // B. Tax Impact (The portion of the total pile existing solely to pay future taxes)
+  const taxImpact = totalNeeded * taxDecimal;
+
+  // C. Inflation Impact (The portion of the pile existing solely to cover rising costs)
+  const inflationImpact = totalNeeded - taxImpact - pureSavingsTerm;
+
+  // D. Net Savings (The actual "buying power" value)
+  const netSavings = pureSavingsTerm;
+
+  const total = netSavings + inflationImpact + taxImpact;
+
   return {
-    totalNeeded: Math.round(totalNeeded), additionalNeeded: Math.round(additionalNeeded),
-    netSavings: Math.round(netSavings), inflationImpact: Math.round(inflationImpact),
-    taxImpact: Math.round(taxImpact), total: Math.round(total),
+    totalNeeded: Math.round(totalNeeded),
+    additionalNeeded: Math.round(additionalNeeded),
+    netSavings: Math.round(netSavings),
+    inflationImpact: Math.round(inflationImpact),
+    taxImpact: Math.round(taxImpact),
+    total: Math.round(total),
     netPct: Math.round((netSavings / total) * 100),
     inflPct: Math.round((inflationImpact / total) * 100),
     taxPct: Math.round((taxImpact / total) * 100),
@@ -50,7 +79,7 @@ function DonutChart({ netPct, inflPct, taxPct }) {
     { label: "Inflation Impact", pct: inflPct, color: "#c7a481" },
     { label: "Tax Impact", pct: taxPct, color: "#8b1c1c" },
   ];
-  const cx = 85, cy = 85, r = 62, innerR = 40;
+  const cx = 100, cy = 100, r = 72, innerR = 46;
   let currentAngle = -Math.PI / 2;
   const paths = segments.map((seg) => {
     const fraction = seg.pct / 100;
@@ -61,20 +90,25 @@ function DonutChart({ netPct, inflPct, taxPct }) {
     const x4 = cx + innerR * Math.cos(currentAngle), y4 = cy + innerR * Math.sin(currentAngle);
     const large = angle > Math.PI ? 1 : 0;
     const midAngle = currentAngle + angle / 2;
-    const labelR = (r + innerR) / 2 + 10;
+    const labelR = r + 18;
     const path = `M ${x1} ${y1} A ${r} ${r} 0 ${large} 1 ${x2} ${y2} L ${x3} ${y3} A ${innerR} ${innerR} 0 ${large} 0 ${x4} ${y4} Z`;
     currentAngle += angle;
     return { ...seg, path, lx: cx + labelR * Math.cos(midAngle), ly: cy + labelR * Math.sin(midAngle) };
   });
   return (
     <div className="flex flex-col items-center">
-      <svg width={170} height={170} viewBox="0 0 170 170">
+      <svg width={200} height={200} viewBox="0 0 200 200">
         {paths.map((seg) => (
           <g key={seg.label}>
             <path d={seg.path} fill={seg.color} />
             {seg.pct > 5 && (
-              <text x={seg.lx} y={seg.ly} textAnchor="middle" dominantBaseline="middle"
-                fill={seg.color === "#f5e6d0" ? "#1a1a1a" : "#fff"} fontSize={8} fontWeight="bold">
+              <text
+                x={seg.lx} y={seg.ly}
+                textAnchor="middle" dominantBaseline="middle"
+                fill="#ffffff"
+                fontSize={11}
+                fontWeight="bold"
+              >
                 {seg.pct}%
               </text>
             )}

@@ -6,13 +6,13 @@ import { getStorage } from "firebase/storage";
 import { getFunctions } from "firebase/functions";
 
 const firebaseConfig = {
-  apiKey: "AIzaSyBC9Hg3gxmocaYQom4pSy8rWc9FyaUXItI",
-  authDomain: "hoc-smart-attendance.firebaseapp.com",
-  projectId: "hoc-smart-attendance",
-  storageBucket: "hoc-smart-attendance.firebasestorage.app",
-  messagingSenderId: "75763552277",
-  appId: "1:75763552277:web:43ab0c3a8df76cde62be1c",
-  measurementId: "G-4FWJN1ZPBM",
+  apiKey: "AIzaSyD2TON7J3pRfPnsZJPxGIlZABVwDWdYoXw",
+  authDomain: "my-wealth-translator.firebaseapp.com",
+  projectId: "my-wealth-translator",
+  storageBucket: "my-wealth-translator.firebasestorage.app",
+  messagingSenderId: "286334709738",
+  appId: "1:286334709738:web:c72cc43638046f95764c93",
+  measurementId: "G-C0136572FK",
 };
 
 // Prevent re-initialization on hot reload

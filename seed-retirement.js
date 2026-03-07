@@ -13,16 +13,22 @@ const db = admin.firestore();
  * - drawdown_return: 4% conservative bonds/dividend stocks during retirement
  * - withdrawal_rule_multiple: 4% rule = 1/0.04 = 25x annual spend
  *   (allows sustainable withdrawals for 30+ year retirement)
+ *
+ * IRS 2025 CONTRIBUTION LIMITS:
+ * - max_401k_contribution: $24,500 (includes $7,500 catch-up for 50+)
+ * - max_roth_ira_contribution: $7,500 (includes $1,000 catch-up for 50+)
  */
 const retirementConfig = {
-  accumulation_return: 0.07,        // 7% annual return during working years
-  drawdown_return: 0.04,            // 4% annual return during retirement
-  withdrawal_rule_multiple: 25,     // 4% rule = 25x annual budget needed
-   // Account type growth rate assumptions (Feb 2026)
-  // FIA: 2.5–6.5% real-world range (source: myannuitystore.com industry study)
+  accumulation_return: 0.07,
+  drawdown_return: 0.04,
+  withdrawal_rule_multiple: 25,
   fia_return: 0.045,
-  // IUL: 6–7% conservative regulatory illustration standard (source: insurancegeek.com)
   iul_return: 0.060,
+
+  // IRS 2025 annual contribution limits
+  max_401k_contribution: 24500,
+  max_roth_ira_contribution: 7500,
+
   last_updated: new Date().toISOString(),
   notes: "Industry standard assumptions verified with CFP Board & Vanguard"
 };

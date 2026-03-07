@@ -571,12 +571,48 @@ function RetirementChart({ chartData, retirementAge, currentAge }) {
 }
 
 // ─── Performance table ────────────────────────────────────────────────────────
-function PerformanceTable({ accounts }) {
+// ─── Performance table ────────────────────────────────────────────────────────
+function PerformanceTable({ accounts, contribution, config }) {
+  const annualContrib = contribution * 12;
+  const is401kCapped = annualContrib > config.max401k;
+  const isRothCapped = annualContrib > config.maxRoth;
+  const showBanner = is401kCapped || isRothCapped;
+
   return (
     <div className="mt-6">
       <p className="text-sm font-bold text-white mb-3">
         Account Type Comparison
       </p>
+
+      {showBanner && (
+        <div
+          className="mb-3 rounded-xl px-4 py-3 text-xs space-y-1"
+          style={{ backgroundColor: "rgba(199,164,129,0.08)", border: "1px solid rgba(199,164,129,0.2)" }}
+        >
+          <p className="font-semibold" style={{ color: "#c7a481" }}>
+            ⚠ IRS 2025 Contribution Limits Applied
+          </p>
+          {is401kCapped && (
+            <p className="text-gray-400">
+              • Traditional 401k capped at{" "}
+              <span className="text-white font-medium">
+                ${config.max401k.toLocaleString()}/yr
+              </span>{" "}
+              (IRS 2025 limit)
+            </p>
+          )}
+          {isRothCapped && (
+            <p className="text-gray-400">
+              • Roth IRA capped at{" "}
+              <span className="text-white font-medium">
+                ${config.maxRoth.toLocaleString()}/yr
+              </span>{" "}
+              (IRS 2025 limit)
+            </p>
+          )}
+        </div>
+      )}
+
       <div
         className="rounded-2xl overflow-hidden"
         style={{ backgroundColor: "#2a2a2a" }}
@@ -660,6 +696,8 @@ function RetirementDetailInner() {
             withdrawalMultiple: data.withdrawal_rule_multiple,
             fiaReturn: data.fia_return,
             iulReturn: data.iul_return,
+            max401k: data.max_401k_contribution,
+            maxRoth: data.max_roth_ira_contribution,
           });
         } else {
           setConfigError(true);
@@ -737,18 +775,27 @@ function RetirementDetailInner() {
   const accounts = useMemo(() => {
     if (!config) return null;
     const yearsToRetire = retirementAge - currentAge;
-    const calc = (rate) => {
+
+    // IRS 2025 annual contribution limits
+    const MAX_401K_ANNUAL = config.max401k;
+    const MAX_ROTH_ANNUAL = config.maxRoth;
+
+    const calc = (rate, annualLimit = null) => {
+      const annualContrib = annualLimit
+        ? Math.min(contribution * 12, annualLimit)
+        : contribution * 12;
       let bal = savings;
       for (let y = 0; y < yearsToRetire; y++)
-        bal = bal * (1 + rate) + contribution * 12;
+        bal = bal * (1 + rate) + annualContrib;
       return Math.round(bal);
     };
+
     return [
       {
         type: "Traditional 401k",
         taxBenefits: "Pre-tax / Deferred",
         growth: `~${(config.annualReturn * 100).toFixed(1)}% avg`,
-        projectedValue: fmt(calc(config.annualReturn)),
+        projectedValue: fmt(calc(config.annualReturn, MAX_401K_ANNUAL)), // ← capped
         liquidity: "Moderate",
         fees: "Low",
       },
@@ -756,7 +803,7 @@ function RetirementDetailInner() {
         type: "Roth IRA",
         taxBenefits: "After-tax / Tax-free",
         growth: `~${(config.annualReturn * 100).toFixed(1)}% avg`,
-        projectedValue: fmt(calc(config.annualReturn)),
+        projectedValue: fmt(calc(config.annualReturn, MAX_ROTH_ANNUAL)), // ← capped
         liquidity: "Moderate",
         fees: "Low",
       },
@@ -764,7 +811,7 @@ function RetirementDetailInner() {
         type: "FIA",
         taxBenefits: "Tax-advantaged",
         growth: `~${(config.fiaReturn * 100).toFixed(1)}% avg`,
-        projectedValue: fmt(calc(config.fiaReturn)),
+        projectedValue: fmt(calc(config.fiaReturn)), // no cap
         liquidity: "Low",
         fees: "Moderate",
       },
@@ -772,7 +819,7 @@ function RetirementDetailInner() {
         type: "IUL",
         taxBenefits: "Tax-advantaged",
         growth: `~${(config.iulReturn * 100).toFixed(1)}% avg`,
-        projectedValue: fmt(calc(config.iulReturn)),
+        projectedValue: fmt(calc(config.iulReturn)), // no cap
         liquidity: "Moderate",
         fees: "High",
       },
@@ -924,7 +971,7 @@ function RetirementDetailInner() {
           currentAge={currentAge}
         />
 
-        <PerformanceTable accounts={accounts} />
+        <PerformanceTable accounts={accounts} contribution={contribution} config={config} />
 
         {/* Action buttons */}
         <div className="mt-8 space-y-3">
