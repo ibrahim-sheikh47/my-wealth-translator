@@ -592,14 +592,14 @@ export default function AmortizationCalculator() {
               icon={<Percent size={18} />}
             />
             <FormInput
-              name="loanTerm"
-              register={register}
-              error={errors.loanTerm}
-              title="Loan Term"
-              select
-              options={termOptions}
-              icon={<Calendar size={18} />}
-            />
+  name="loanTerm"
+  register={register}
+  error={errors.loanTerm}
+  title="Loan Term (years)"
+  type="number"
+  placeholder="e.g. 15"
+  icon={<Calendar size={18} />}
+/>
             <div className="pt-1">
               <p className="text-xs text-zinc-500 uppercase tracking-widest mb-3">
                 Optional
