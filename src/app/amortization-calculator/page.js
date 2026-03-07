@@ -186,6 +186,144 @@ function BarChart({ schedule, view }) {
   );
 }
 
+// ─── Comparison Chart ────────────────────────────────────────────────────────
+
+function ComparisonChart({
+  loanAmount,
+  interestRate,
+  loanTerm,
+  extraPayment,
+  baseMonthly,
+}) {
+  const r = interestRate / 100 / 12;
+  const totalMonths = loanTerm * 12;
+
+  // Without extra payment
+  const withoutData = [];
+  let bal = loanAmount;
+  for (let m = 1; m <= totalMonths; m++) {
+    const intP = bal * r;
+    const prinP = Math.min(baseMonthly - intP, bal);
+    bal = Math.max(0, bal - prinP);
+    if (m % 12 === 0 || bal <= 0) {
+      withoutData.push({ year: Math.ceil(m / 12), balance: bal });
+      if (bal <= 0) break;
+    }
+  }
+
+  // With extra payment
+  const withData = [];
+  bal = loanAmount;
+  const monthlyWithExtra = baseMonthly + extraPayment;
+  for (let m = 1; m <= totalMonths; m++) {
+    const intP = bal * r;
+    const prinP = Math.min(monthlyWithExtra - intP, bal);
+    bal = Math.max(0, bal - prinP);
+    if (m % 12 === 0 || bal <= 0) {
+      withData.push({ year: Math.ceil(m / 12), balance: bal });
+      if (bal <= 0) break;
+    }
+  }
+
+  const maxYears = withoutData.length;
+  const maxBalance = loanAmount;
+  const BAR_H = 160;
+
+  return (
+    <div className="space-y-4">
+      <div className="flex items-end gap-1" style={{ height: BAR_H + 24 }}>
+        {withoutData.map((d, i) => {
+          const withVal = withData[i]?.balance ?? 0;
+          const withoutH = Math.max((d.balance / maxBalance) * BAR_H, 2);
+          const withH =
+            withVal <= 0 ? 0 : Math.max((withVal / maxBalance) * BAR_H, 2);
+          const showLabel =
+            i === 0 ||
+            i === withoutData.length - 1 ||
+            i % Math.ceil(maxYears / 6) === 0;
+
+          return (
+            <div
+              key={i}
+              className="flex-1 flex flex-col items-center group relative"
+              style={{ height: BAR_H + 24 }}
+            >
+              <div
+                className="w-full flex items-end gap-px"
+                style={{ height: BAR_H }}
+              >
+                <div
+                  className="flex-1 rounded-t-sm transition-all duration-300"
+                  style={{
+                    height: withoutH,
+                    backgroundColor: "#3a3a3a",
+                    border: "1px solid #555",
+                  }}
+                />
+                {withH > 0 && (
+                  <div
+                    className="flex-1 rounded-t-sm transition-all duration-300"
+                    style={{ height: withH, backgroundColor: "#c7a481" }}
+                  />
+                )}
+              </div>
+              {showLabel && (
+                <span className="text-[8px] text-zinc-600 mt-1">Y{d.year}</span>
+              )}
+              <div className="absolute bottom-6 left-1/2 -translate-x-1/2 hidden group-hover:flex flex-col items-center bg-[#1a1a1a] border border-[#c7a481]/40 rounded px-2 py-1.5 text-[10px] text-white whitespace-nowrap z-20 gap-0.5 shadow-lg">
+                <span className="text-[#c7a481] font-semibold">
+                  Year {d.year}
+                </span>
+                <span className="text-zinc-400">
+                  Without: ${Math.round(d.balance).toLocaleString()}
+                </span>
+                <span className="text-[#c7a481]">
+                  With: ${Math.round(withVal).toLocaleString()}
+                </span>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+      <div className="flex items-center gap-5 text-xs">
+        <div className="flex items-center gap-2">
+          <span
+            className="w-3 h-3 rounded-sm inline-block border border-zinc-600"
+            style={{ backgroundColor: "#3a3a3a" }}
+          />
+          <span className="text-zinc-400">Without extra payment</span>
+        </div>
+        <div className="flex items-center gap-2">
+          <span className="w-3 h-3 rounded-sm bg-[#c7a481] inline-block" />
+          <span className="text-zinc-400">With extra payment</span>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ─── Comparison Row ──────────────────────────────────────────────────────────
+
+function CompareRow({ label, without, withVal, savingLabel, better }) {
+  return (
+    <div className="grid grid-cols-4 items-center py-3.5 border-b border-[#1e1e1e] last:border-0">
+      <span className="text-xs text-zinc-500 pr-2">{label}</span>
+      <span className="text-sm font-semibold text-center text-zinc-400">
+        {without}
+      </span>
+      <span className="text-sm font-semibold text-center text-[#c7a481]">
+        {withVal}
+      </span>
+      <span
+        className="text-xs font-semibold text-center"
+        style={{ color: better ? "#4ade80" : "#f87171" }}
+      >
+        {savingLabel}
+      </span>
+    </div>
+  );
+}
+
 // ─── Constants ───────────────────────────────────────────────────────────────
 
 const termOptions = [
@@ -216,7 +354,6 @@ export default function AmortizationCalculator() {
     },
   });
 
-  // ── Pre-fill from latest saved Firestore report on mount ──────────────────
   useEffect(() => {
     const uid = user?.uid;
     if (!uid) return;
@@ -242,7 +379,7 @@ export default function AmortizationCalculator() {
       }
     })();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []); // run once on mount
+  }, []);
 
   const loanAmount = watch("loanAmount");
   const interestRate = watch("interestRate");
@@ -251,7 +388,7 @@ export default function AmortizationCalculator() {
 
   const [scheduleView, setScheduleView] = useState("annual");
   const [showFullSchedule, setShowFullSchedule] = useState(false);
-  const [saveStatus, setSaveStatus] = useState("idle"); // "idle"|"saving"|"saved"|"error"
+  const [saveStatus, setSaveStatus] = useState("idle");
 
   // ── Amortization calculation ───────────────────────────────────────────────
   const results = useMemo(() => {
@@ -268,6 +405,7 @@ export default function AmortizationCalculator() {
       r > 0 ? (P * r * Math.pow(1 + r, n)) / (Math.pow(1 + r, n) - 1) : P / n;
     const monthly = baseMonthly + extra;
 
+    // WITH extra payment schedule
     let balance = P,
       totalInterest = 0,
       annualInterest = 0,
@@ -302,20 +440,38 @@ export default function AmortizationCalculator() {
       }
     }
 
-    const monthsSaved = extra > 0 ? years * 12 - month : 0;
+    // WITHOUT extra payment calculation
     const originalInterest = baseMonthly * n - P;
-    const actualTotalPayment = P + totalInterest;
+    const originalTotalPayment = P + originalInterest;
+    const originalTerm = years;
+    const originalTermMonths = n;
+
+    const actualTermMonths = month;
+    const actualTermYears = Math.floor(actualTermMonths / 12);
+    const actualTermRemMonths = actualTermMonths % 12;
+
+    const monthsSaved = extra > 0 ? n - month : 0;
     const interestSaved = extra > 0 ? originalInterest - totalInterest : 0;
+    const actualTotalPayment = P + totalInterest;
 
     return {
       monthly: baseMonthly,
+      monthlyWithExtra: monthly,
       totalPayment: actualTotalPayment,
       totalInterest,
       monthsSaved,
       interestSaved,
+      actualTermMonths,
+      actualTermYears,
+      actualTermRemMonths,
+      originalInterest,
+      originalTotalPayment,
+      originalTermMonths,
       schedule: { monthly: monthlySchedule, annual: annualSchedule },
     };
   }, [loanAmount, interestRate, loanTerm, extraPayment]);
+
+  const hasExtra = parseFloat(extraPayment) > 0 && results?.monthsSaved > 0;
 
   const displaySchedule = results
     ? scheduleView === "annual"
@@ -326,24 +482,20 @@ export default function AmortizationCalculator() {
     ? displaySchedule
     : displaySchedule.slice(0, 5);
 
-  // ── Save to Firestore ──────────────────────────────────────────────────────
-  // Stored under: users/{uid}/amortization_reports/{auto-id}
+  // ── Save ───────────────────────────────────────────────────────────────────
   const handleSave = async () => {
     if (!results) return;
     if (!user?.uid) {
       alert("Please log in to save reports.");
       return;
     }
-
     setSaveStatus("saving");
     try {
       await addDoc(collection(db, "users", user.uid, "amortization_reports"), {
-        // Input values (for pre-filling the form on revisit)
         loanAmount: parseFloat(loanAmount),
         interestRate: parseFloat(interestRate),
         loanTerm: loanTerm,
         extraPayment: parseFloat(extraPayment) || 0,
-        // Computed summary
         monthlyPayment: results.monthly,
         totalPayment: results.totalPayment,
         totalInterest: results.totalInterest,
@@ -360,7 +512,7 @@ export default function AmortizationCalculator() {
     }
   };
 
-  // ── Export CSV ─────────────────────────────────────────────────────────────
+  // ── Export ─────────────────────────────────────────────────────────────────
   const handleExport = () => {
     if (!results) return;
     const lines = [
@@ -405,10 +557,9 @@ export default function AmortizationCalculator() {
       className="min-h-screen text-white"
       style={{ backgroundColor: "#1a1a1a" }}
     >
-
       <div className="px-6 pt-8 pb-12 lg:px-12 lg:pt-12">
-      <GoodMorning />
-        {/* Header */}
+        <GoodMorning />
+
         <div className="mb-8">
           <h1 className="text-4xl lg:text-5xl font-bold mb-2">
             My <span className="text-[#c7a481]">Amortization</span> Calculator
@@ -464,27 +615,35 @@ export default function AmortizationCalculator() {
               />
             </div>
 
-            {results &&
-              parseFloat(extraPayment) > 0 &&
-              results.monthsSaved > 0 && (
-                <div className="bg-[#111] border border-[#c7a481]/20 rounded-xl p-4">
-                  <p className="text-[#c7a481] text-sm font-semibold mb-1">
-                    💡 Extra Payment Impact
-                  </p>
-                  <p className="text-zinc-400 text-xs">
-                    You&apos;ll pay off{" "}
-                    <span className="text-white font-medium">
-                      {Math.floor(results.monthsSaved / 12)}y{" "}
-                      {results.monthsSaved % 12}mo
-                    </span>{" "}
-                    early and save{" "}
-                    <span className="text-white font-medium">
-                      {fmt(results.interestSaved)}
-                    </span>{" "}
-                    in interest.
-                  </p>
-                </div>
-              )}
+            {hasExtra && (
+              <div className="bg-[#111] border border-[#c7a481]/20 rounded-xl p-4">
+                <p className="text-[#c7a481] text-sm font-semibold mb-1">
+                  💡 Extra Payment Impact
+                </p>
+                <p className="text-zinc-400 text-sm">
+                  You&apos;ll pay off{" "}
+                  <span className="text-white font-medium">
+                    {Math.floor(results.monthsSaved / 12)}y{" "}
+                    {results.monthsSaved % 12}mo
+                  </span>{" "}
+                  early
+                </p>
+                <p className="text-zinc-400 text-sm mt-2">
+                  With the extra payment(s), the loan will be paid off in{" "}
+                  <span className="text-white font-medium">
+                    {Math.floor(
+                      (parseInt(loanTerm) * 12 - results.monthsSaved) / 12,
+                    )}
+                    y {(parseInt(loanTerm) * 12 - results.monthsSaved) % 12}mo
+                  </span>
+                  , and{" "}
+                  <span className="text-white font-medium">
+                    {fmt(results.interestSaved)}
+                  </span>{" "}
+                  interest will be saved.
+                </p>
+              </div>
+            )}
           </div>
 
           {/* ── Right: Summary ── */}
@@ -572,6 +731,170 @@ export default function AmortizationCalculator() {
               </div>
             </div>
             <BarChart schedule={results.schedule} view={scheduleView} />
+          </div>
+        )}
+
+        {/* ── WITH vs WITHOUT COMPARISON ── */}
+        {results && hasExtra && (
+          <div className="mt-6 bg-[#2a2a2a] border border-[#3a3a3a] rounded-2xl overflow-hidden">
+            {/* Header */}
+            <div
+              className="px-6 py-4 border-b border-[#3a3a3a]"
+              style={{
+                background:
+                  "linear-gradient(90deg, rgba(199,164,129,0.08) 0%, transparent 100%)",
+              }}
+            >
+              <h2 className="text-base font-semibold text-white flex items-center gap-2">
+                <span className="text-[#c7a481]">⚡</span> Extra Payment
+                Comparison
+              </h2>
+              <p className="text-xs text-zinc-500 mt-0.5">
+                See the full impact of adding {fmt(parseFloat(extraPayment))}/mo
+                extra
+              </p>
+            </div>
+
+            {/* Table Header */}
+            <div className="grid grid-cols-4 px-6 py-3 bg-[#1a1a1a] border-b border-[#2a2a2a]">
+              <span className="text-xs text-zinc-600 uppercase tracking-widest">
+                Metric
+              </span>
+              <span className="text-xs text-zinc-500 uppercase tracking-widest text-center">
+                Without Extra
+              </span>
+              <span className="text-xs text-[#c7a481] uppercase tracking-widest text-center">
+                With Extra
+              </span>
+              <span className="text-xs text-zinc-500 uppercase tracking-widest text-center">
+                Difference
+              </span>
+            </div>
+
+            {/* Comparison Rows */}
+            <div className="px-6">
+              <CompareRow
+                label="Monthly Payment"
+                without={fmt(results.monthly)}
+                withVal={fmt(results.monthlyWithExtra)}
+                savingLabel={`+${fmt(parseFloat(extraPayment))}/mo`}
+                better={false}
+              />
+              <CompareRow
+                label="Total Interest Paid"
+                without={fmt(results.originalInterest)}
+                withVal={fmt(results.totalInterest)}
+                savingLabel={`Save ${fmt(results.interestSaved)}`}
+                better={true}
+              />
+              <CompareRow
+                label="Total Amount Paid"
+                without={fmt(results.originalTotalPayment)}
+                withVal={fmt(results.totalPayment)}
+                savingLabel={`Save ${fmt(results.originalTotalPayment - results.totalPayment)}`}
+                better={true}
+              />
+              <CompareRow
+                label="Loan Term"
+                without={`${parseInt(loanTerm)}y 0mo`}
+                withVal={`${results.actualTermYears}y ${results.actualTermRemMonths}mo`}
+                savingLabel={`${Math.floor(results.monthsSaved / 12)}y ${results.monthsSaved % 12}mo faster`}
+                better={true}
+              />
+              <CompareRow
+                label="Total Payments Count"
+                without={`${results.originalTermMonths} payments`}
+                withVal={`${results.actualTermMonths} payments`}
+                savingLabel={`${results.monthsSaved} fewer`}
+                better={true}
+              />
+              <CompareRow
+                label="Interest to Principal Ratio"
+                without={`${((results.originalInterest / parseFloat(loanAmount)) * 100).toFixed(1)}%`}
+                withVal={`${((results.totalInterest / parseFloat(loanAmount)) * 100).toFixed(1)}%`}
+                savingLabel={`${(((results.originalInterest - results.totalInterest) / parseFloat(loanAmount)) * 100).toFixed(1)}% less`}
+                better={true}
+              />
+            </div>
+
+            {/* Savings Highlight Banner */}
+            <div
+              className="mx-6 my-4 rounded-xl p-4 flex items-center justify-between"
+              style={{
+                backgroundColor: "rgba(199,164,129,0.08)",
+                border: "1px solid rgba(199,164,129,0.2)",
+              }}
+            >
+              <div>
+                <p className="text-xs text-zinc-500 mb-1">
+                  Total Savings with Extra Payment
+                </p>
+                <p className="text-2xl font-bold text-[#c7a481]">
+                  {fmt(results.interestSaved)}
+                </p>
+              </div>
+              <div className="text-right">
+                <p className="text-xs text-zinc-500 mb-1">Time Saved</p>
+                <p className="text-2xl font-bold text-white">
+                  {Math.floor(results.monthsSaved / 12)}y{" "}
+                  {results.monthsSaved % 12}mo
+                </p>
+              </div>
+              <div className="text-right">
+                <p className="text-xs text-zinc-500 mb-1">Extra Invested</p>
+                <p className="text-2xl font-bold text-white">
+                  {fmt(parseFloat(extraPayment) * results.actualTermMonths)}
+                </p>
+              </div>
+            </div>
+
+            {/* Side by Side Balance Chart */}
+            <div className="px-6 pb-6">
+              <p className="text-xs text-zinc-500 uppercase tracking-widest mb-4">
+                Balance Over Time — With vs Without
+              </p>
+              <ComparisonChart
+                loanAmount={parseFloat(loanAmount)}
+                interestRate={parseFloat(interestRate)}
+                loanTerm={parseInt(loanTerm)}
+                extraPayment={parseFloat(extraPayment)}
+                baseMonthly={results.monthly}
+              />
+            </div>
+
+            {/* Donut Comparison */}
+            <div className="grid grid-cols-2 gap-px bg-[#3a3a3a] border-t border-[#3a3a3a]">
+              <div className="bg-[#2a2a2a] p-6 flex flex-col items-center">
+                <p className="text-xs text-zinc-500 uppercase tracking-widest mb-4">
+                  Without Extra
+                </p>
+                <DonutChart
+                  principal={parseFloat(loanAmount)}
+                  interest={results.originalInterest}
+                />
+                <p className="text-xs text-zinc-500 mt-3 text-center">
+                  Interest:{" "}
+                  <span className="text-white">
+                    {fmt(results.originalInterest)}
+                  </span>
+                </p>
+              </div>
+              <div className="bg-[#222] p-6 flex flex-col items-center">
+                <p className="text-xs text-[#c7a481] uppercase tracking-widest mb-4">
+                  With Extra ✓
+                </p>
+                <DonutChart
+                  principal={parseFloat(loanAmount)}
+                  interest={results.totalInterest}
+                />
+                <p className="text-xs text-zinc-500 mt-3 text-center">
+                  Interest:{" "}
+                  <span className="text-[#c7a481]">
+                    {fmt(results.totalInterest)}
+                  </span>
+                </p>
+              </div>
+            </div>
           </div>
         )}
 
