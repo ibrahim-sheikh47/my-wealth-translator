@@ -167,7 +167,7 @@ function IncomeFormInner() {
                 <div className="md:grid md:grid-cols-2 w-full items-center gap-5 md:space-y-0 space-y-5">
                   <div className="space-y-2">
                     <FormInput
-                      label="What is your tax rate?"
+                      label="What is your federal marginal tax rate? refer to IRS.gov"
                       title="Tax Rate"
                       name="taxRate"
                       type="number"
