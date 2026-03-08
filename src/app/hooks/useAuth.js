@@ -28,8 +28,7 @@ export function useAuth() {
 const signup = async (formData) => {
   const result = await dispatch(signupUser(formData));
   if (signupUser.fulfilled.match(result)) {
-    // Change '/' to '/payment'
-    router.replace('/payment');
+    router.replace('/loading?redirect=/payment');
     return { success: true };
   }
   return { success: false, error: result.payload };

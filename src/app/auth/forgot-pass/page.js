@@ -47,10 +47,10 @@ export default function ForgotPassPage() {
             height={80}
             className="mx-auto mb-4"
           />
-        <h1 className="md:text-2xl font-bold text-[#c7a481] mb-1">
+        <h1 className="md:text-2xl text-xl font-bold text-[#c7a481] mb-1">
             My Wealth Translator
           </h1>
-          <h2 className="text-lg font-semibold text-[#c7a481] mb-10">
+          <h2 className="md:text-lg font-semibold text-[#c7a481] mb-10">
             The Financial Co-Pilot
           </h2>
           <h1 className="text-lg font-semibold text-[#c7a481] mb-1">

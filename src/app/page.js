@@ -1,6 +1,6 @@
 "use client";
 
-import { Calculator, TrendingUp, Building2, Wallet } from "lucide-react";
+import { Calculator, TrendingUp, Building2, Wallet, PiggyBank, DollarSign } from "lucide-react";
 import GoodMorning from "./components/GoodMorning";
 import { useDispatch, useSelector } from "react-redux";
 import { useAuth } from "./hooks/useAuth";
@@ -14,7 +14,7 @@ const translators = [
         My <span className="text-[#c7a481]">Cost-of-Living</span> Translator
       </>
     ),
-    icon: Calculator,
+    icon: DollarSign,
     href: "/living",
   },
   {
@@ -23,7 +23,7 @@ const translators = [
         My <span className="text-[#c7a481]">Retirement</span> Translator
       </>
     ),
-    icon: TrendingUp,
+    icon: PiggyBank,
     href: "/retirement",
   },
   {
@@ -33,8 +33,8 @@ const translators = [
         Calculator
       </>
     ),
-    icon: Building2,
-    href: "/stocks",
+    icon: Calculator,
+    href: "/amortization-calculator",
   },
   {
     name: (
