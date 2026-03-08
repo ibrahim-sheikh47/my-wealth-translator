@@ -273,7 +273,7 @@ export default function ProfilePage() {
     {
       question: "What is My Wealth Translator?",
       answer:
-        "My Wealth Translator is a comprehensive financial planning tool that helps you understand and manage your assets, income, retirement, and employer stock plans.",
+        "My Wealth Translator is a comprehensive financial planning tool that helps you understand and manage your assets, income, retirement, and amortization.",
     },
     {
       question: "Can I export my results from the app?",

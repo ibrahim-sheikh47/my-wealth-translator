@@ -29,8 +29,8 @@ const translators = [
   {
     name: (
       <>
-        My <span className="text-[#c7a481]">Employer Stock Plan</span>{" "}
-        Translator
+        My <span className="text-[#c7a481]">Amortization</span>{" "}
+        Calculator
       </>
     ),
     icon: Building2,
